@@ -31,13 +31,31 @@ class Diagrams:
         if x < self.A:
             return 0
         elif self.A <= x < self.P1:
-            return self.Fay * x/1000
+            return self.Fay * x
         elif self.P1 <= x < self.B:
-            return ((self.Fay * self.P1) + (self.Fay - self.P) * (x-self.P1))/1000
+            return (self.Fay * self.P1) + (self.Fay - self.P) * (x-self.P1)
         elif self.B <= x < self.P2:
-            return ((self.Fay * self.P1) + (self.Fay - self.P) * (self.B-self.P1) + (self.Fay - self.P + self.Fby) * (x-self.B))/1000
+            return (self.Fay * self.P1) + (self.Fay - self.P) * (self.B-self.P1) + (self.Fay - self.P + self.Fby) * (x-self.B)
         elif self.P2 <= x:
             return 0
+
+    def plot_diagrams(self):
+        SFD = []
+        BMD = []
+        for x in range(1280):
+            SFD.append(self.shear_force(x))
+            BMD.append(self.moment(x))
+
+        # using the variable axs for multiple Axes
+        fig, axs = plt.subplots(1, 2)
+
+        # using tuple unpacking for multiple Axes
+        axs[0].plot(SFD)
+        axs[1].plot(BMD)
+        axs[1].invert_yaxis()
+        axs[0].legend(["Shear Force (N)"])
+        axs[1].legend(["Moment (Nmm)"])
+        plt.show()
 
 
 class CrossSectionSolver:
@@ -52,9 +70,15 @@ class CrossSectionSolver:
 
     @staticmethod
     def i_rect(b, h):
+        """
+        :param b: Width of the rectangle
+        :param h: Height of the rectangle
+        :return: Second moment of area of the rectangle
+        """
         return (b*h**3)/12
 
     def calculate_centroid(self):
+        """ Calculates and returns the centroid of a given cross-section"""
         nominator = 0
         area_total = 0
         for section in self.sections:
@@ -65,6 +89,7 @@ class CrossSectionSolver:
         return nominator/area_total
 
     def get_i_section(self):
+        """ Calculates and returns the second moment of area of a given cross-section"""
         I = 0
         for section in self.sections:
             b, h, y_section = section
@@ -75,12 +100,4 @@ class CrossSectionSolver:
 if __name__ == "__main__":
     P = 500
     diagrams = Diagrams(P)
-    SFD = []
-    BMD = []
-    for x in range(1280):
-        SFD.append(diagrams.shear_force(x))
-        BMD.append(diagrams.moment(x))
-    plt.plot(SFD)
-    plt.plot(BMD)
-    plt.legend(["Shear Force (N)", "Moment (Nm)"])
-    plt.show()
+    diagrams.plot_diagrams()
