@@ -122,6 +122,20 @@ class Arch:
             return 0
 
 
+def generate_cross_sections(arch):
+    bridge_length = 1280
+    cross_sections = []
+    deck = [100, 1.27, 0]
+    for x in range(bridge_length):
+        y_under = arch.under_arch(x)
+        y_upper = arch.over_arch(x)
+        deck[2] = y_under
+        arch_rect = [1.27, y_under+y_upper, 0]
+        cross_sections.append([deck, arch_rect, arch_rect])
+
+    return cross_sections
+
+
 if __name__ == "__main__":
     P = 500
     diagrams = Diagrams(P)
