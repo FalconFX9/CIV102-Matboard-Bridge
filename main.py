@@ -4,6 +4,7 @@ TODO: Add variable cross-section functionality
 
 
 import matplotlib.pyplot as plt
+import constants as C
 
 
 class Diagrams:
@@ -71,8 +72,8 @@ class CrossSectionSolver:
     """
     def __init__(self, sections):
         self.sections = sections
-        self.centroid = 0
-        self.calculate_centroid()
+
+        self.centroid = self.calculate_centroid()
 
     @staticmethod
     def i_rect(b, h):
@@ -88,19 +89,71 @@ class CrossSectionSolver:
         nominator = 0
         area_total = 0
         for section in self.sections:
-            b, h, y_section = section
-            area_section = b * h
-            nominator += area_section * (y_section + (h/2))
+            b, h, y_section, x = section
+            h = abs(h)
+            area_section = abs(b * h)
+            nominator += area_section * (abs(y_section) + (h/2))
             area_total += area_section
         return nominator/area_total
 
     def get_i_section(self):
         """ Calculates and returns the second moment of area of a given cross-section"""
         I = 0
-        for section in self.sections:
-            b, h, y_section = section
+        for rect in self.sections:
+            b, h, y_section, x = rect
+            h = abs(h)
             I += self.i_rect(b, h) + (b*h) * (abs(y_section + (h/2)-self.centroid) ** 2)
         return I
+
+    def get_q_section(self):
+        """ Calculates and returns the first moment of area of a given cross-section"""
+        Q = 0
+        for rect in self.sections:
+            b, h, y_section, x = rect
+            h = abs(h)
+            Q += (b * h) * (abs(y_section + (h / 2) - self.centroid) ** 2)
+
+        return Q
+
+
+class BridgeSolver:
+
+    def __init__(self, cross_sections, SFD, BMD):
+        self.cross_sections = cross_sections
+        self.Is = []
+        self.centroids = []
+        self.Qs = []
+        self.solve_section_properties()
+        self.V_fail = []
+        self.P_fail_C = []
+        self.P_fail_T = []
+        self.SFD = SFD
+        self.BMD = BMD
+
+    def solve_section_properties(self):
+        for cross_section in self.cross_sections:
+            solver = CrossSectionSolver(cross_section)
+            self.Is.append(solver.get_i_section())
+            # self.Qs.append(solver.get_q_section())
+            self.centroids.append(solver.centroid)
+
+    def flex_failure(self):
+        for x in range(C.BRIDGE_LENGTH):
+            if self.BMD[x] > 0:
+                self.P_fail_C.append(((C.SigC * self.Is[x])/(self.cross_sections[x][0][2]-self.centroids[x]))/(self.BMD[x]/500))
+                self.P_fail_T.append(((C.SigT * self.Is[x]) / (self.centroids[x])) / (self.BMD[x]/500))
+            elif self.BMD[x] < 0:
+                self.P_fail_T.append(((C.SigC * self.Is[x])/abs((self.cross_sections[x][1][2] + self.cross_sections[x][1][1])-self.centroids[x]))/(-self.BMD[x]/500))
+                self.P_fail_C.append(((C.SigT * self.Is[x]) / (self.centroids[x])) / (-self.BMD[x]/500))
+
+    def plot(self):
+        fig, axs = plt.subplots(1, 2)
+
+        axs[0].plot(self.P_fail_C)
+        axs[1].plot(self.P_fail_T)
+        axs[0].legend(["P Fail Compression"])
+        axs[1].legend(["P Fail Tension"])
+        plt.show()
 
 
 class Arch:
@@ -129,9 +182,13 @@ def generate_cross_sections(arch):
     for x in range(bridge_length):
         y_under = arch.under_arch(x)
         y_upper = arch.over_arch(x)
-        deck[2] = y_under
-        arch_rect = [1.27, y_under+y_upper, 0]
-        cross_sections.append([deck, arch_rect, arch_rect])
+        if y_under < 0:
+            arch_rect = [1.27, y_under-y_upper, 0, 0]
+            cross_sections.append([[deck[0], deck[1], abs(y_under), 0], arch_rect, [arch_rect[0], arch_rect[1], arch_rect[2], 98], [deck[0], deck[1], 0, 0]])
+        else:
+            arch_rect = [1.27, y_upper, 0, 0]
+            cross_sections.append(
+                [[deck[0], deck[1], 0, 0], arch_rect, [arch_rect[0], arch_rect[1], arch_rect[2], 98]])
 
     return cross_sections
 
@@ -140,3 +197,15 @@ if __name__ == "__main__":
     P = 500
     diagrams = Diagrams(P)
     diagrams.plot_diagrams()
+    cross_sections = generate_cross_sections(Arch())
+    SFD = []
+    BMD = []
+    import c_s_visualizer
+    cs = c_s_visualizer.DrawCrossSection(cross_sections, None)
+    #cs.draw_animation()
+    for x in range(1280):
+        SFD.append(diagrams.shear_force(x))
+        BMD.append(diagrams.moment(x))
+    bridge_solver = BridgeSolver(cross_sections, SFD, BMD)
+    bridge_solver.flex_failure()
+    bridge_solver.plot()
