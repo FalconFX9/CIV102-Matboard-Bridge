@@ -129,6 +129,9 @@ class BridgeSolver:
         self.P_fail_T = []
         self.SFD = SFD
         self.BMD = BMD
+        
+        self.V_fail_G = []
+        self.V_fail_B = []
 
     def solve_section_properties(self):
         for cross_section in self.cross_sections:
@@ -146,6 +149,9 @@ class BridgeSolver:
                 self.P_fail_T.append(((C.SigC * self.Is[x])/abs((self.cross_sections[x][1][2] + self.cross_sections[x][1][1])-self.centroids[x]))/(-self.BMD[x]/500))
                 self.P_fail_C.append(((C.SigT * self.Is[x]) / (self.centroids[x])) / (-self.BMD[x]/500))
 
+    def shear_failure(self):
+        pass
+                
     def plot(self):
         fig, axs = plt.subplots(1, 2)
 
