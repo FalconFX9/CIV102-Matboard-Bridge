@@ -1,3 +1,8 @@
+"""
+TODO: Add variable cross-section functionality
+"""
+
+
 import matplotlib.pyplot as plt
 
 
@@ -40,6 +45,7 @@ class Diagrams:
             return 0
 
     def plot_diagrams(self):
+        """ Plots the shear and bending moment diagrams"""
         SFD = []
         BMD = []
         for x in range(1280):
@@ -95,6 +101,25 @@ class CrossSectionSolver:
             b, h, y_section = section
             I += self.i_rect(b, h) + (b*h) * (abs(y_section + (h/2)-self.centroid) ** 2)
         return I
+
+
+class Arch:
+
+    @staticmethod
+    def under_arch(x):
+        y = 0.0016 * x * (x-788) - 50
+        if y < 0:
+            return y
+        else:
+            return 0
+
+    @staticmethod
+    def over_arch(x):
+        y = -0.0017 * (x - 788) * (x - 1280)
+        if y > 0:
+            return y
+        else:
+            return 0
 
 
 if __name__ == "__main__":
