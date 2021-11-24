@@ -124,14 +124,24 @@ class BridgeSolver:
         self.centroids = []
         self.Qs = []
         self.solve_section_properties()
-        self.V_fail = []
+        
+        # cause of failure: shear failure (matboard or glue)
+        self.P_V_fail_G = []
+        self.P_V_fail_B = []
+        
+        # cause of failure: plate buckling
+        self.P_fail_buck = []
+        
+        # cause of failure: shear buckling
+        self.P_V_fail_buck = []
+        
+        # cause of failure: flexual failures (compression/tension)
         self.P_fail_C = []
         self.P_fail_T = []
+        
         self.SFD = SFD
         self.BMD = BMD
         
-        self.V_fail_G = []
-        self.V_fail_B = []
 
     def solve_section_properties(self):
         for cross_section in self.cross_sections:
@@ -150,6 +160,19 @@ class BridgeSolver:
                 self.P_fail_C.append(((C.SigT * self.Is[x]) / (self.centroids[x])) / (-self.BMD[x]/500))
 
     def shear_failure(self):
+        # for a cross section at location x:
+        if self.BMD[x] > 0:
+            pass
+        elif self.BMD[x] < 0:
+            pass
+        pass
+    
+    def plate_buckling(self):
+        pass
+    
+    def shear_buckling(self):
+        # for distance x between 2 diaphragms
+        
         pass
                 
     def plot(self):
