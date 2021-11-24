@@ -60,7 +60,6 @@ class DrawCrossSection:
             pygame.event.pump()
             clock.tick(30)
             n += 1
-            print(n)
             if n >= 1280:
                 n = 0
 
@@ -86,9 +85,9 @@ if __name__ == "__main__":
 
     cross_section = DrawCrossSection(rects, screen)
     clock = pygame.time.Clock()
-    cross_section.draw()
+    #cross_section.draw()
     elevation = DrawElevation(screen)
-    #elevation.draw()
+    elevation.draw()
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:

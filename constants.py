@@ -5,3 +5,4 @@ TauM = 4
 TauG = 2
 mu = 0.2
 BRIDGE_LENGTH = 1280
+P = 500
