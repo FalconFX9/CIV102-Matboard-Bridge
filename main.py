@@ -15,19 +15,30 @@ class Rectangle:
         self.height = height
         self.d_bottom = d_bottom
         self.x_pos = x_pos
+        self.w = self.width
+        self.h = self.height
+        self.y = d_bottom
+        self.x = x_pos
 
     def is_touching(self, rect):
+        """
         if self.d_bottom < rect.d_bottom < self.d_bottom + self.height or \
                 self.d_bottom < rect.d_bottom + rect.height < self.d_bottom + self.height:
 
             if self.x_pos + self.width == rect.x_pos:
-                return min(self.height, rect.height)
+                return min(self.height, rect.height), self.x_pos + self.width
 
-        if self.x_pos < rect.x_pos < self.x_pos + self.width or \
-                self.x_pos < rect.x_pos + rect.width < self.x_pos + self.width:
-
+        """
+        if self.x_pos <= rect.x_pos <= self.x_pos + self.width or \
+                self.x_pos <= rect.x_pos + rect.width <= self.x_pos + self.width:
             if self.d_bottom + self.height == rect.d_bottom:
-                return self.width + rect.width
+
+                return min(self.width, rect.width), self.d_bottom + self.height
+
+            elif self.d_bottom == rect.d_bottom + rect.height:
+                return min(self.width, rect.width), self.d_bottom
+
+        return None, None
 
 
 class Diagrams:
@@ -113,15 +124,14 @@ class CrossSectionSolver:
         return (b * h ** 3) / 12
 
     @staticmethod
-    def calculate_centroid(sections):
+    def calculate_centroid(section):
         """ Calculates and returns the centroid of a given cross-section"""
         nominator = 0
         area_total = 0
-        for section in sections:
-            b, h, y_section, x = section
-            h = abs(h)
-            area_section = abs(b * h)
-            nominator += area_section * (abs(y_section) + (h / 2))
+        for rect in section:
+            h = abs(rect.h)
+            area_section = abs(rect.w * h)
+            nominator += area_section * (abs(rect.y) + (h / 2))
             area_total += area_section
         return nominator / area_total
 
@@ -129,37 +139,36 @@ class CrossSectionSolver:
         """ Calculates and returns the second moment of area of a given cross-section"""
         I = 0
         for rect in self.sections:
-            b, h, y_section, x = rect
-            h = abs(h)
-            I += self.i_rect(b, h) + (b * h) * (abs(y_section + (h / 2) - self.centroid) ** 2)
+            h = abs(rect.h)
+            I += self.i_rect(rect.w, h) + (rect.w * h) * (abs(rect.y + (h / 2) - self.centroid) ** 2)
         return I
 
     def calculate_q_section(self):
         """ Calculates and returns the first moment of area of a given cross-section"""
         max_height = 0
         for rect in self.sections:
-            if rect[1] + rect[2] > max_height:
-                max_height = rect[1] + rect[2]
+            if rect.h + rect.y > max_height:
+                max_height = rect.h + rect.y
 
-        precision = 100
+        precision = C.PRECISION
         for i in range(1, int(max_height * precision)):
             A = 0
             rects = []
             for rect in self.sections:
-                rect_top = rect[1] + rect[2]
-                rect_bottom = rect[2]
+                rect_top = rect.h + rect.y
+                rect_bottom = rect.y
                 if rect_top <= i / precision:
                     rects.append(rect)
                 elif rect_top > i / precision > rect_bottom:
                     # [width, height, distance from bottom of section to bottom of rectangle, x-position (left side))
-                    sliced_rect = [rect[0], (i / precision - rect_bottom), rect[2], rect[3]]
+                    sliced_rect = Rectangle(rect.w, (i / precision - rect_bottom), rect.y, rect.x)
                     rects.append(sliced_rect)
 
             centroid_Q_area = self.calculate_centroid(rects)
 
             d = abs(self.centroid - centroid_Q_area)
             for rect in rects:
-                A += rect[0] * rect[1]
+                A += rect.w * rect.h
 
             self.Q.append(A * d)
 
@@ -171,6 +180,9 @@ class CrossSectionSolver:
         index = self.Q.index(maximum)
         return maximum, index
 
+    def get_separated_plates(self):
+        pass
+
 
 class BridgeSolver:
 
@@ -179,11 +191,13 @@ class BridgeSolver:
         self.Is = []
         self.centroids = []
         self.Qs = []
+        self.QsAllY = []
         self.solve_section_properties()
         self.V_fail = []
         self.P_fail_C = []
         self.P_fail_T = []
         self.V_fail_MAT = []
+        self.V_fail_glue = []
         self.SFD = SFD
         self.BMD = BMD
 
@@ -192,19 +206,20 @@ class BridgeSolver:
             solver = CrossSectionSolver(cross_section)
             self.Is.append(solver.get_i_section())
             self.Qs.append(solver.get_max_Q())
+            self.QsAllY.append(solver.get_Q())
             self.centroids.append(solver.centroid)
 
     def flex_failure(self):
         for x in range(C.BRIDGE_LENGTH):
             if self.BMD[x] > 0:
-                self.P_fail_C.append(
-                    ((C.SigC * self.Is[x]) / (self.cross_sections[x][0][2] - self.centroids[x])) / (self.BMD[x] / C.P))
-                self.P_fail_T.append(((C.SigT * self.Is[x]) / (self.centroids[x])) / (self.BMD[x] / C.P))
+                self.P_fail_C.append(min(
+                    ((C.SigC * self.Is[x]) / (self.cross_sections[x][0].y - self.centroids[x])) / (self.BMD[x] / C.P), C.MAX_FORCE))
+                self.P_fail_T.append(min(C.MAX_FORCE, ((C.SigT * self.Is[x]) / (self.centroids[x])) / (self.BMD[x] / C.P)))
             elif self.BMD[x] < 0:
-                self.P_fail_T.append(((C.SigC * self.Is[x]) / abs(
-                    (self.cross_sections[x][1][2] + self.cross_sections[x][1][1]) - self.centroids[x])) / (
-                                                 -self.BMD[x] / C.P))
-                self.P_fail_C.append(((C.SigT * self.Is[x]) / (self.centroids[x])) / (-self.BMD[x] / C.P))
+                self.P_fail_T.append(min(C.MAX_FORCE, ((C.SigC * self.Is[x]) / abs(
+                    (self.cross_sections[x][1].y + self.cross_sections[x][1].h) - self.centroids[x])) / (
+                                                 -self.BMD[x] / C.P)))
+                self.P_fail_C.append(min(C.MAX_FORCE, ((C.SigT * self.Is[x]) / (self.centroids[x])) / (-self.BMD[x] / C.P)))
 
     def shear_failure(self):
         # Vfail = (Tfail * I * B) / Q
@@ -217,19 +232,62 @@ class BridgeSolver:
                 pass
 
     def glue_fail(self):
-        pass
         # Sweep though height
         # Calculate overlapping rectangles
+        # Note: Max tab width < A
+        default_len = len(self.cross_sections[0])
+        max_tab_width = 30
+        tab_counter = []
+        for x in range(C.BRIDGE_LENGTH):
+            contact_areas = {}
+            for i, rect in enumerate(self.cross_sections[x][:-1]):
+                for other_rects in self.cross_sections[x][i + 1:]:
+                    contact_area, y_glue = rect.is_touching(other_rects)
+                    if contact_area and y_glue:
+                        if y_glue in contact_areas.keys():
+                            contact_areas[y_glue].append(contact_area)
+                        else:
+                            contact_areas[y_glue] = [contact_area]
+
+            v_fail_glue_section = []
+            min_sum = 100000000000000000000000000000000000000
+            y_smallest = 0
+            for y, contact_area in contact_areas.items():
+                if sum(contact_area) < min_sum:
+                    min_sum = sum(contact_area)
+                    y_smallest = y
+                v_fail = (C.TauG * self.Is[x] * sum(contact_area))/self.QsAllY[x][int(y*C.PRECISION) - 1]
+                v_fail_glue_section.append(v_fail)
+
+            try:
+                self.V_fail_glue.append((min(v_fail_glue_section)/len(contact_areas[y_smallest])) / (abs(self.SFD[x]) / C.P))
+            except ZeroDivisionError:
+                pass
+            """
+            if len(section) > default_len:
+                pass
+                tab_counter.append()
+            if tab_counter > max_tab_width:
+                default_len = len(section)
+                tab_counter = []
+            else:
+            """
 
     def plot(self):
-        fig, axs = plt.subplots(1, 3)
+        print(f"Min P Fail Compression (flexural): {min(self.P_fail_C)} (N)")
+        print(f"Min P Fail Tension (flexural): {min(self.P_fail_T)} (N)")
+        print(f"Min P Fail Matboard (shear): {min(self.V_fail_MAT)} (N)")
+        print(f"Min P Fail Glue (shear): {min(self.V_fail_glue)} (N)")
+        fig, axs = plt.subplots(1, 4)
 
         axs[0].plot(self.P_fail_C)
         axs[1].plot(self.P_fail_T)
         axs[2].plot(self.V_fail_MAT)
+        axs[3].plot(self.V_fail_glue)
         axs[0].legend(["P Fail Compression"])
         axs[1].legend(["P Fail Tension"])
         axs[2].legend(["V Fail Matboard"])
+        axs[3].legend(["V Fail Glue"])
         plt.show()
 
 
@@ -260,7 +318,9 @@ def generate_cross_sections(arch):
         deck = [100, 1.27, 90, 0]
         arch_rect = [1.27, 90, 0, 0]
         arch_rect_2 = [1.27, 90, 0, 98]
-        cross_sections.append([deck, arch_rect, arch_rect_2])
+        cross_sections.append([Rectangle(deck[0], deck[1], deck[2], deck[3]),
+                               Rectangle(arch_rect[0], arch_rect[1], arch_rect[2], arch_rect[3]),
+                               Rectangle(arch_rect_2[0], arch_rect_2[1], arch_rect_2[2], arch_rect_2[3])])
     """
         y_under = arch.under_arch(x)
         y_upper = arch.over_arch(x)
@@ -303,4 +363,5 @@ if __name__ == "__main__":
     bridge_solver = BridgeSolver(cross_sections, SFD, BMD)
     bridge_solver.flex_failure()
     bridge_solver.shear_failure()
+    bridge_solver.glue_fail()
     bridge_solver.plot()
