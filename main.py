@@ -21,13 +21,6 @@ class Rectangle:
         self.x = x_pos
 
     def is_touching(self, rect):
-        """
-        if self.d_bottom <= rect.d_bottom <= self.d_bottom + self.height or \
-                self.d_bottom <= rect.d_bottom + rect.height <= self.d_bottom + self.height:
-
-            if self.x_pos + self.width == rect.x_pos:
-                return min(self.height, rect.height), self.x_pos + self.width
-        """
         if self.x_pos <= rect.x_pos <= self.x_pos + self.width or \
                 self.x_pos <= rect.x_pos + rect.width <= self.x_pos + self.width:
             if self.d_bottom + self.height == rect.d_bottom:
@@ -38,6 +31,21 @@ class Rectangle:
                 return min(self.width, rect.width), self.d_bottom
 
         return None, None
+
+    def is_touching_horizontal(self, rect):
+        if self.d_bottom <= rect.d_bottom <= self.d_bottom + self.height or \
+                self.d_bottom <= rect.d_bottom + rect.height <= self.d_bottom + self.height:
+
+            if self.x_pos + self.width == rect.x_pos:
+                return min(self.height, rect.height), self.x_pos + self.width
+
+            elif self.x_pos == rect.x_pos + rect.width:
+                return min(self.height, rect.height), self.x_pos
+
+        return None, None
+
+    def get_properties(self):
+        return self.w, self.h, self.y, self.x
 
 
 class Diagrams:
@@ -179,8 +187,72 @@ class CrossSectionSolver:
         index = self.Q.index(maximum)
         return maximum, index
 
-    def get_separated_plates(self):
-        pass
+    def get_separated_deck(self):
+        """ Returns Rect objects that represent the geometrically split up deck, and which case of plate they are
+        Is a horrible mess.
+        Needs to be optimized.
+        No idea how general this is, but it works for the pi beam."""
+        contact_areas = {}
+        for n, rect in enumerate(self.sections[:-1]):
+            for other_rect in self.sections[n + 1:]:
+                contact_area, y = rect.is_touching(other_rect)
+                if contact_area and y:
+                    if rect not in contact_areas.keys():
+                        contact_areas[rect] = []
+                    contact_areas[rect].append([contact_area, y, other_rect])
+
+
+        joint_rects = []
+        plate_rects = []
+        x_starts_ends = []
+        case_n = []
+        for rect in contact_areas.keys():
+            print(rect.get_properties())
+            temp_rect = Rectangle(rect.w, rect.h, rect.y, rect.x)
+            for elements in contact_areas[rect]:
+                joint_rects.append(Rectangle(elements[2].w, rect.h, rect.y, elements[2].x))
+                x_starts_ends.append(elements[2].x)
+                x_starts_ends.append(elements[2].x + elements[2].w)
+            x_starts_ends.sort()
+            for x_coord in x_starts_ends:
+                n_width = x_coord - temp_rect.x
+                n_rect = Rectangle(n_width, temp_rect.h, temp_rect.y, temp_rect.x)
+                temp_rect.w -= n_width
+                temp_rect.x = x_coord
+                plate_rects.append(n_rect)
+
+            c = 0
+            delete_list = []
+            for rect_p in plate_rects:
+                for rect_joint in joint_rects:
+                    if round(plate_rects[c].w, 2) == round(rect_joint.w, 2) and round(plate_rects[c].x, 2) == round(rect_joint.x, 2):
+                        delete_list.append(rect_p)
+                    elif round(plate_rects[c].w, 2) == 0:
+                        delete_list.append(rect_p)
+                c += 1
+            for rect_d in delete_list:
+                if rect_d in plate_rects:
+                    plate_rects.remove(rect_d)
+
+            for rect_p in plate_rects:
+                n = 0
+                for rect_joint in joint_rects:
+                    j, k = rect_p.is_touching_horizontal(rect_joint)
+                    print(j, k)
+                    if j:
+                        n += 1
+                if n == 1:
+                    case_n.append(2)
+                elif n == 2:
+                    case_n.append(1)
+
+        return plate_rects, case_n
+
+
+
+
+
+
 
 
 class BridgeSolver:
@@ -318,7 +390,7 @@ def generate_cross_sections(arch):
         arch_rect = [1.27, 90, 0, 0]
         arch_rect_2 = [1.27, 90, 0, (100-1.27)]
         tab_1 = [10, 1.27, (90 - 1.27), 1.27]
-        tab_2 = [10, 1.27, (90 - 1.27), (100-(2*1.27))]
+        tab_2 = [10, 1.27, (90 - 1.27), (100-1.27-10)]
         cross_sections.append([Rectangle(deck[0], deck[1], deck[2], deck[3]),
                                Rectangle(arch_rect[0], arch_rect[1], arch_rect[2], arch_rect[3]),
                                Rectangle(arch_rect_2[0], arch_rect_2[1], arch_rect_2[2], arch_rect_2[3]),
@@ -355,6 +427,8 @@ if __name__ == "__main__":
     diagrams = Diagrams(C.P)
     diagrams.plot_diagrams()
     cross_sections = generate_cross_sections(Arch())
+    cs = CrossSectionSolver(cross_sections[0])
+    cs.get_separated_plates()
     SFD = []
     BMD = []
     # import c_s_visualizer
