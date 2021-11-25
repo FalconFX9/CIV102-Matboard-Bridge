@@ -22,12 +22,11 @@ class Rectangle:
 
     def is_touching(self, rect):
         """
-        if self.d_bottom < rect.d_bottom < self.d_bottom + self.height or \
-                self.d_bottom < rect.d_bottom + rect.height < self.d_bottom + self.height:
+        if self.d_bottom <= rect.d_bottom <= self.d_bottom + self.height or \
+                self.d_bottom <= rect.d_bottom + rect.height <= self.d_bottom + self.height:
 
             if self.x_pos + self.width == rect.x_pos:
                 return min(self.height, rect.height), self.x_pos + self.width
-
         """
         if self.x_pos <= rect.x_pos <= self.x_pos + self.width or \
                 self.x_pos <= rect.x_pos + rect.width <= self.x_pos + self.width:
@@ -317,10 +316,14 @@ def generate_cross_sections(arch):
     for x in range(bridge_length):
         deck = [100, 1.27, 90, 0]
         arch_rect = [1.27, 90, 0, 0]
-        arch_rect_2 = [1.27, 90, 0, 98]
+        arch_rect_2 = [1.27, 90, 0, (100-1.27)]
+        tab_1 = [10, 1.27, (90 - 1.27), 1.27]
+        tab_2 = [10, 1.27, (90 - 1.27), (100-(2*1.27))]
         cross_sections.append([Rectangle(deck[0], deck[1], deck[2], deck[3]),
                                Rectangle(arch_rect[0], arch_rect[1], arch_rect[2], arch_rect[3]),
-                               Rectangle(arch_rect_2[0], arch_rect_2[1], arch_rect_2[2], arch_rect_2[3])])
+                               Rectangle(arch_rect_2[0], arch_rect_2[1], arch_rect_2[2], arch_rect_2[3]),
+                               Rectangle(tab_1[0], tab_1[1], tab_1[2], tab_1[3]),
+                               Rectangle(tab_2[0], tab_2[1], tab_2[2], tab_2[3])])
     """
         y_under = arch.under_arch(x)
         y_upper = arch.over_arch(x)
