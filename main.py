@@ -11,7 +11,7 @@ import math
 
 class Rectangle:
 
-    def __init__(self, width, height, d_bottom, x_pos):
+    def __init__(self, width, height, d_bottom, x_pos, ID=None):
         self.width = width
         self.height = height
         self.d_bottom = d_bottom
@@ -20,6 +20,7 @@ class Rectangle:
         self.h = self.height
         self.y = d_bottom
         self.x = x_pos
+        self.ID = ID
 
     def is_touching(self, rect):
         if self.x_pos <= rect.x_pos <= self.x_pos + self.width or \
@@ -249,6 +250,15 @@ class CrossSectionSolver:
 
         return plate_rects, case_n
 
+    def get_sliced_webs(self):
+        sliced_webs = []
+        for rect in self.sections:
+            if rect.ID == 'WEB':
+                sliced_web = Rectangle(rect.w, rect.d_bottom+rect.height-self.centroid, rect.d_bottom, rect.x_pos)
+                sliced_webs.append(sliced_web)
+
+        return sliced_webs
+
 
 class BridgeSolver:
 
@@ -416,11 +426,12 @@ def generate_cross_sections(arch):
         arch_rect_2 = [1.27, 90, 0, (100-1.27)]
         tab_1 = [10, 1.27, (90 - 1.27), 1.27]
         tab_2 = [10, 1.27, (90 - 1.27), (100-1.27-10)]
-        cross_sections.append([Rectangle(deck[0], deck[1], deck[2], deck[3]),
-                               Rectangle(arch_rect[0], arch_rect[1], arch_rect[2], arch_rect[3]),
-                               Rectangle(arch_rect_2[0], arch_rect_2[1], arch_rect_2[2], arch_rect_2[3]),
-                               Rectangle(tab_1[0], tab_1[1], tab_1[2], tab_1[3]),
-                               Rectangle(tab_2[0], tab_2[1], tab_2[2], tab_2[3])])
+        cross_sections.append([Rectangle(deck[0], deck[1], deck[2], deck[3], C.DECK_ID),
+                               Rectangle(arch_rect[0], arch_rect[1], arch_rect[2], arch_rect[3], C.WEB_ID),
+                               Rectangle(arch_rect_2[0], arch_rect_2[1], arch_rect_2[2], arch_rect_2[3], C.WEB_ID),
+                               Rectangle(tab_1[0], tab_1[1], tab_1[2], tab_1[3], C.GLUE_TAB_ID),
+                               Rectangle(tab_2[0], tab_2[1], tab_2[2], tab_2[3], C.GLUE_TAB_ID)
+                               ])
     """
         y_under = arch.under_arch(x)
         y_upper = arch.over_arch(x)
