@@ -6,6 +6,7 @@ TODO: Implement glue shear failure
 
 import matplotlib.pyplot as plt
 import constants as C
+import math
 
 
 class Rectangle:
@@ -249,12 +250,6 @@ class CrossSectionSolver:
         return plate_rects, case_n
 
 
-
-
-
-
-
-
 class BridgeSolver:
 
     def __init__(self, cross_sections, SFD, BMD):
@@ -269,6 +264,7 @@ class BridgeSolver:
         self.P_fail_T = []
         self.V_fail_MAT = []
         self.V_fail_glue = []
+        self.V_fail_MAT_buckling = []
         self.SFD = SFD
         self.BMD = BMD
 
@@ -344,21 +340,50 @@ class BridgeSolver:
             else:
             """
 
+    @staticmethod
+    def get_shear_buckling(t, h, a):
+        return ((6*(math.pi**2)*C.E)/(12*(1-C.mu**2))) * ((t / h) ** 2 + (t / a) ** 2)
+
+    def solve_shear_buckling(self):
+        for x in range(C.BRIDGE_LENGTH):
+            h_web = 0
+            for rect in self.cross_sections[x]:
+                h_web = max(rect.h, h_web)
+            a = 150  # temporary
+            tau = self.get_shear_buckling(C.DIAPHRAGM_THICKNESS, h_web, a)
+            q, y = self.Qs[x]
+            t = 2 * C.MATBOARD_THICKNESS  # CALCULATE IN CROSS-SECTION SOLVER
+            try:
+                self.V_fail_MAT_buckling.append(((tau * self.Is[x] * t) / q) / (abs(self.SFD[x]) / C.P))
+            except ZeroDivisionError:
+                pass
+
     def plot(self):
-        print(f"Min P Fail Compression (flexural): {min(self.P_fail_C)} (N)")
-        print(f"Min P Fail Tension (flexural): {min(self.P_fail_T)} (N)")
-        print(f"Min P Fail Matboard (shear): {min(self.V_fail_MAT)} (N)")
-        print(f"Min P Fail Glue (shear): {min(self.V_fail_glue)} (N)")
-        fig, axs = plt.subplots(1, 4)
+        min_P_comp = min(self.P_fail_C)
+        min_P_tens = min(self.P_fail_T)
+        min_P_sMAT = min(self.V_fail_MAT)
+        min_P_sGLUE = min(self.V_fail_glue)
+        min_P_sbMATH = min(self.V_fail_MAT_buckling)
+        print(f"Min P Fail Compression (flexural): {min_P_comp} N, at x={self.P_fail_C.index(min_P_comp)}")
+        print(f"Min P Fail Tension (flexural): {min_P_tens} N, at x={self.P_fail_T.index(min_P_tens)}")
+        print(f"Min P Fail Matboard (shear): {min_P_sMAT} N, at x={self.V_fail_MAT.index(min_P_sMAT)}")
+        print(f"Min P Fail Glue (shear): {min_P_sGLUE} N, at x={self.V_fail_glue.index(min_P_sGLUE)}")
+        print(f"Min P Fail Shear Buckling: {min_P_sbMATH} N, at x={self.V_fail_MAT_buckling.index(min_P_sbMATH)}")
+
+        min_any = min(min_P_comp, min_P_tens, min_P_sMAT, min_P_sGLUE, min_P_sbMATH)
+        print(f"The bridge will fail at {int(round(min_any, 0))} N")
+        fig, axs = plt.subplots(1, 5)
 
         axs[0].plot(self.P_fail_C)
         axs[1].plot(self.P_fail_T)
         axs[2].plot(self.V_fail_MAT)
         axs[3].plot(self.V_fail_glue)
+        axs[4].plot(self.V_fail_MAT_buckling)
         axs[0].legend(["P Fail Compression"])
         axs[1].legend(["P Fail Tension"])
         axs[2].legend(["V Fail Matboard"])
         axs[3].legend(["V Fail Glue"])
+        axs[4].legend(["V Fail MAT shear buckling"])
         plt.show()
 
 
@@ -428,7 +453,7 @@ if __name__ == "__main__":
     diagrams.plot_diagrams()
     cross_sections = generate_cross_sections(Arch())
     cs = CrossSectionSolver(cross_sections[0])
-    cs.get_separated_plates()
+    #cs.get_separated_plates()
     SFD = []
     BMD = []
     # import c_s_visualizer
@@ -441,4 +466,5 @@ if __name__ == "__main__":
     bridge_solver.flex_failure()
     bridge_solver.shear_failure()
     bridge_solver.glue_fail()
+    bridge_solver.solve_shear_buckling()
     bridge_solver.plot()
