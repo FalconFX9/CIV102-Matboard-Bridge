@@ -14,7 +14,7 @@ class DrawCrossSection:
     def draw_single(self, n):
         self.window.fill((0, 0, 0))
         for rect in self.rects[n]:
-            n_rect = [rect[3], rect[2], rect[0], rect[1]]
+            n_rect = [rect.x, rect.y, rect.w, rect.h]
             n_rect[1] *= -1
             n_rect[1] -= n_rect[3]
             n_rect[0] += self.window.get_size()[0]/2 - 50
@@ -33,27 +33,19 @@ class DrawCrossSection:
 
     def draw_animation(self):
         clock = pygame.time.Clock()
-        n = 0
+        n = 600
         run = True
+        from main import Rectangle
         while run:
             self.window.fill((0, 0, 0))
             rects = self.rects[n]
             for rect in rects:
+                n_rect = Rectangle(rect.w, rect.h, rect.y, rect.x)
+                n_rect.x += (self.window.get_size()[0]/2)
+                n_rect.y += (self.window.get_size()[1]/2)
+                pygame.draw.rect(self.window, (255, 255, 255), [n_rect.x, n_rect.y, n_rect.w, n_rect.h])
 
-                n_rect = [rect[3], rect[2], rect[0], rect[1]]
-
-                n_rect[0] += self.window.get_size()[0] / 2 - 50
-                if rects[0][2] > 0:
-                    n_rect[1] *= -1
-                    n_rect[1] += n_rect[3]
-                    n_rect[1] += (self.window.get_size()[1] / 2 - 65) + rects[0][2]
-                else:
-                    n_rect[1] -= n_rect[3]
-                    n_rect[1] += (self.window.get_size()[1] / 2 - 65)
-                n_rect[3] = abs(n_rect[3])
-
-                pygame.draw.rect(self.window, (255, 255, 255), n_rect)
-
+            self.window.blit(pygame.transform.rotate(self.window, 180), (0, 0))
             pygame.display.flip()
             pygame.event.pump()
             clock.tick(30)
@@ -62,30 +54,35 @@ class DrawCrossSection:
                     pygame.quit()
                     run = False
             n += 1
+            print(n)
             if n >= 1280:
                 n = 0
 
 
 class DrawElevation:
 
-    def __init__(self):
+    def __init__(self, cross_sections):
         self.window = pygame.display.set_mode((1280, 700))
+        self.cross_sections = cross_sections
 
     def draw(self, failure_location, arch):
         self.window.fill((0, 0, 0))
-        for x in range(1280):
-            y1 = arch.over_arch(x)
-            y2 = arch.under_arch(x)
-            y3 = arch.right_support_under_arch(x)
-            pygame.draw.rect(self.window, (255, 255, 255), (x - 1, (self.window.get_size()[1]/2), 1, -y2))
-            pygame.draw.rect(self.window, (255, 255, 255), (x - 1, (self.window.get_size()[1] / 2 - y1), 1, y1))
-            pygame.draw.rect(self.window, (255, 255, 255), (x - 1, (self.window.get_size()[1]/2), 1, -y3))
-        pygame.draw.rect(self.window, (255, 0, 0), [0, self.window.get_size()[1]/2, 15, 5])
-        pygame.draw.rect(self.window, (255, 0, 0), [1045, self.window.get_size()[1] / 2, 30, 5])
-        pygame.draw.rect(self.window, (255, 0, 0), [failure_location, self.window.get_size()[1] / 2, 1, 30])
+        for x in range(1279, -1, -1):
+            h_max = 0
+            for rect in self.cross_sections[1279-x]:
+                h_max = max(h_max, rect.y + rect.h)
+            pygame.draw.rect(self.window, (255, 255, 255), [x, self.window.get_size()[1]/2, 1, h_max])
+
+        pygame.draw.rect(self.window, (255, 0, 0), [1265, self.window.get_size()[1]/2, 15, 5])
+        pygame.draw.rect(self.window, (255, 0, 0), [1280-1045, self.window.get_size()[1] / 2, 30, 5])
+        pygame.draw.rect(self.window, (255, 0, 0), [1280-failure_location, self.window.get_size()[1] / 2, 1, 30])
+        pygame.draw.rect(self.window, (0, 255, 0), [1280-552, self.window.get_size()[1]/2+100, 4, 50])
+        pygame.draw.rect(self.window, (0, 255, 0), [1280 - 1252, self.window.get_size()[1] / 2 + 100, 4, 50])
         clock = pygame.time.Clock()
+        self.window.blit(pygame.transform.rotate(self.window, 180), (0, 0))
         run = True
         while run:
+
             pygame.display.flip()
             pygame.event.pump()
             clock.tick(60)

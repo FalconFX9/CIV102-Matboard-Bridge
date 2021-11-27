@@ -209,7 +209,7 @@ class CrossSectionSolver:
         x_starts_ends = []
         case_n = []
         for rect in contact_areas.keys():
-            print(rect.get_properties())
+            # print(rect.get_properties())
             temp_rect = Rectangle(rect.w, rect.h, rect.y, rect.x)
             for elements in contact_areas[rect]:
                 joint_rects.append(Rectangle(elements[2].w, rect.h, rect.y, elements[2].x))
@@ -278,6 +278,7 @@ class BridgeSolver:
         self.V_fail_MAT = []
         self.V_fail_glue = []
         self.V_fail_MAT_buckling = []
+        self.P_fail_PLATE = []
         self.SFD = SFD
         self.BMD = BMD
 
@@ -357,7 +358,44 @@ class BridgeSolver:
 
     def plate_buckling(self):
         for x in range(C.BRIDGE_LENGTH):
-            pass
+            sigma_crit = 100000000000
+            for i in range(len(self.sliced_decks[x][0])):
+                rect = self.sliced_decks[x][0][i]
+                case_n = self.sliced_decks[x][1][i]
+                if case_n == 1:
+                    # print(f"Case 1: {rect.get_properties()}")
+                    sigma_crit = min(self.case_1(rect.h, rect.w), sigma_crit)
+                    # print(f"Case 1 Sigma: {self.case_1(rect.h, rect.w)}")
+                elif case_n == 2:
+                    # print(f"Case 2: {rect.get_properties()}")
+                    sigma_crit = min(self.case_2(rect.h, rect.w), sigma_crit)
+                    # print(f"Case 2 Sigma: {self.case_2(rect.h, rect.w)}")
+
+            for i in range(len(self.sliced_webs[x][0])):
+                rect = self.sliced_webs[x][0][i]
+                case_n = self.sliced_webs[x][1][i]
+                if case_n == 3:
+                    # print(f"Case 3: {rect.get_properties()}")
+                    sigma_crit = min(self.case_3(rect.w, rect.h), sigma_crit)
+                    # print(f"Case 3 Sigma: {self.case_3(rect.w, rect.h)}")
+
+            if self.BMD[x] > 0:
+                P_fail = min(((sigma_crit * self.Is[x]) / (self.cross_sections[x][0].y - self.centroids[x])) / (self.BMD[x] / C.P), C.MAX_FORCE)
+            else:
+                P_fail = C.MAX_FORCE
+            self.P_fail_PLATE.append(P_fail)
+
+    @staticmethod
+    def case_1(t, b):
+        return ((4 * (math.pi ** 2) * C.E) / (12 * (1 - C.mu ** 2))) * ((t / b) ** 2)
+
+    @staticmethod
+    def case_2(t, b):
+        return ((0.425 * (math.pi ** 2) * C.E) / (12 * (1 - C.mu ** 2))) * ((t / b) ** 2)
+
+    @staticmethod
+    def case_3(t, b):
+        return ((6 * (math.pi ** 2) * C.E) / (12 * (1 - C.mu ** 2))) * ((t / b) ** 2)
 
     @staticmethod
     def get_shear_buckling(t, h, a):
@@ -377,18 +415,36 @@ class BridgeSolver:
             except ZeroDivisionError:
                 pass
 
+    def midspan_deflection(self):
+        bmd_530 = self.BMD[530]
+        max_BMD = max(self.BMD)
+        min_BMD = min(self.BMD)
+        EI = (C.E * 0.416*(10**6))
+        # I = 0.416x106 mm4
+        curv_530 = bmd_530 / EI
+        max_curvature = max_BMD / EI
+        min_curvature = min_BMD / EI
+        triangle_1 = 0.5 * curv_530 * 530
+        smol_area = (0.5 * max_curvature * 550) - triangle_1
+        triangle_2 = 0.5 * max_curvature * (787.8378-550)
+        triangle_3 = 0.5 * abs(min_curvature) * (1060 - 787.8378)
+        D_mid = ((530/1060) * (triangle_1+smol_area+triangle_2+triangle_3)) - triangle_1
+        print(D_mid)
+
+
     def plot(self):
         min_P_comp = min(self.P_fail_C)
         min_P_tens = min(self.P_fail_T)
         min_P_sMAT = min(self.V_fail_MAT)
         min_P_sGLUE = min(self.V_fail_glue)
         min_P_sbMATH = min(self.V_fail_MAT_buckling)
+        #min_P_PLATE = min(self.P_fail_PLATE)
         print(f"Min P Fail Compression (flexural): {min_P_comp} N, at x={self.P_fail_C.index(min_P_comp)}")
         print(f"Min P Fail Tension (flexural): {min_P_tens} N, at x={self.P_fail_T.index(min_P_tens)}")
         print(f"Min P Fail Matboard (shear): {min_P_sMAT} N, at x={self.V_fail_MAT.index(min_P_sMAT)}")
         print(f"Min P Fail Glue (shear): {min_P_sGLUE} N, at x={self.V_fail_glue.index(min_P_sGLUE)}")
         print(f"Min P Fail Shear Buckling: {min_P_sbMATH} N, at x={self.V_fail_MAT_buckling.index(min_P_sbMATH)}")
-
+        #print(f"Min P Fail Plate Buckling: {min_P_PLATE} N, at x={self.P_fail_PLATE.index(min_P_PLATE)}")
         min_any = min(min_P_comp, min_P_tens, min_P_sMAT, min_P_sGLUE, min_P_sbMATH)
         print(f"The bridge will fail at {int(round(min_any, 0))} N")
         fig, axs = plt.subplots(1, 5)
@@ -398,11 +454,13 @@ class BridgeSolver:
         axs[2].plot(self.V_fail_MAT)
         axs[3].plot(self.V_fail_glue)
         axs[4].plot(self.V_fail_MAT_buckling)
+        #axs[5].plot(self.P_fail_PLATE)
         axs[0].legend(["P Fail Compression"])
         axs[1].legend(["P Fail Tension"])
         axs[2].legend(["V Fail Matboard"])
         axs[3].legend(["V Fail Glue"])
         axs[4].legend(["V Fail MAT shear buckling"])
+        #axs[5].legend(["P Fail Plate"])
         plt.show()
 
 
@@ -430,20 +488,33 @@ def generate_cross_sections(arch):
     cross_sections = []
     deck = [100, 1.27, 0]
     for x in range(bridge_length):
+        y_upper = arch.over_arch(x)
         deck = [100, 1.27, 90, 0]
-        arch_rect = [1.27, 90, 0, 0]
-        arch_rect_2 = [1.27, 90, 0, (100-1.27)]
-        tab_1 = [10, 1.27, (90 - 1.27), 1.27]
-        tab_2 = [10, 1.27, (90 - 1.27), (100-1.27-10)]
-        cross_sections.append([Rectangle(deck[0], deck[1], deck[2], deck[3], C.DECK_ID),
-                               Rectangle(arch_rect[0], arch_rect[1], arch_rect[2], arch_rect[3], C.WEB_ID),
-                               Rectangle(arch_rect_2[0], arch_rect_2[1], arch_rect_2[2], arch_rect_2[3], C.WEB_ID),
-                               Rectangle(tab_1[0], tab_1[1], tab_1[2], tab_1[3], C.GLUE_TAB_ID),
-                               Rectangle(tab_2[0], tab_2[1], tab_2[2], tab_2[3], C.GLUE_TAB_ID)
-                               ])
+        arch_rect = [1.27, 90, 0, 10]
+        arch_rect_2 = [1.27, 90, 0, (90-1.27)]
+        tab_1 = [10, 1.27, (90 - 1.27), 10+1.27]
+        tab_2 = [10, 1.27, (90 - 1.27), (90-1.27-10)]
+        if y_upper > 0:
+            cross_sections.append([Rectangle(deck[0], deck[1], deck[2], deck[3], C.DECK_ID),
+                                   Rectangle(arch_rect[0], arch_rect[1], arch_rect[2], arch_rect[3], C.WEB_ID),
+                                   Rectangle(arch_rect_2[0], arch_rect_2[1], arch_rect_2[2], arch_rect_2[3], C.WEB_ID),
+                                   Rectangle(tab_1[0], tab_1[1], tab_1[2], tab_1[3], C.GLUE_TAB_ID),
+                                   Rectangle(tab_2[0], tab_2[1], tab_2[2], tab_2[3], C.GLUE_TAB_ID),
+                                   Rectangle(arch_rect[0], y_upper, 91.27, 10),
+                                   Rectangle(arch_rect[0], y_upper, 91.27, 90-1.27),
+                                   Rectangle(tab_1[0], tab_1[1], 91.27, tab_1[3], C.GLUE_TAB_ID),
+                                   Rectangle(tab_2[0], tab_2[1], 91.27, tab_2[3], C.GLUE_TAB_ID),
+                                   ])
+        else:
+            cross_sections.append([Rectangle(deck[0], deck[1], deck[2], deck[3], C.DECK_ID),
+                                   Rectangle(arch_rect[0], arch_rect[1], arch_rect[2], arch_rect[3], C.WEB_ID),
+                                   Rectangle(arch_rect_2[0], arch_rect_2[1], arch_rect_2[2], arch_rect_2[3], C.WEB_ID),
+                                   Rectangle(tab_1[0], tab_1[1], tab_1[2], tab_1[3], C.GLUE_TAB_ID),
+                                   Rectangle(tab_2[0], tab_2[1], tab_2[2], tab_2[3], C.GLUE_TAB_ID)
+                                   ])
     """
         y_under = arch.under_arch(x)
-        y_upper = arch.over_arch(x)
+        
         if y_under < 0:
             arch_rect = [1.27, y_under-y_upper, 0, 0]
             cross_sections.append([[deck[0], deck[1], abs(y_under), 0], arch_rect, [arch_rect[0], arch_rect[1], arch_rect[2], 98], [deck[0], deck[1], 0, 0]])
@@ -457,18 +528,6 @@ def generate_cross_sections(arch):
 
 
 if __name__ == "__main__":
-    """
-    deck = [100, 1.27, 0]
-    arch_rect = [1.27, 90, 0, 0]
-    section = [[deck[0], deck[1], 90, 0], arch_rect, [arch_rect[0], arch_rect[1], arch_rect[2], 98]]
-    cs_solver = CrossSectionSolver(section)
-
-    cs_solver.calculate_q_section()
-
-    print(cs_solver.get_max_Q())
-    print(cs_solver.centroid)
-    """
-
     diagrams = Diagrams(C.P)
     diagrams.plot_diagrams()
     cross_sections = generate_cross_sections(Arch())
@@ -476,9 +535,10 @@ if __name__ == "__main__":
     #cs.get_separated_plates()
     SFD = []
     BMD = []
-    # import c_s_visualizer
-    # cs = c_s_visualizer.DrawCrossSection(cross_sections, None)
-    # cs.draw_animation()
+    import c_s_visualizer
+    #cs = c_s_visualizer.DrawCrossSection(cross_sections, None)
+    #cs.draw_animation()
+    c_s_visualizer.DrawElevation(cross_sections).draw(549, None)
     for x in range(1280):
         SFD.append(diagrams.shear_force(x))
         BMD.append(diagrams.moment(x))
@@ -487,4 +547,6 @@ if __name__ == "__main__":
     bridge_solver.shear_failure()
     bridge_solver.glue_fail()
     bridge_solver.shear_buckling()
+    #bridge_solver.plate_buckling()
+    bridge_solver.midspan_deflection()
     bridge_solver.plot()
