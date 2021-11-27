@@ -240,7 +240,6 @@ class CrossSectionSolver:
                 n = 0
                 for rect_joint in joint_rects:
                     j, k = rect_p.is_touching_horizontal(rect_joint)
-                    print(j, k)
                     if j:
                         n += 1
                 if n == 1:
@@ -252,12 +251,14 @@ class CrossSectionSolver:
 
     def get_sliced_webs(self):
         sliced_webs = []
+        case_n = []
         for rect in self.sections:
             if rect.ID == 'WEB':
                 sliced_web = Rectangle(rect.w, rect.d_bottom+rect.height-self.centroid, rect.d_bottom, rect.x_pos)
                 sliced_webs.append(sliced_web)
+                case_n.append(3)
 
-        return sliced_webs
+        return sliced_webs, case_n
 
 
 class BridgeSolver:
@@ -268,6 +269,8 @@ class BridgeSolver:
         self.centroids = []
         self.Qs = []
         self.QsAllY = []
+        self.sliced_decks = []
+        self.sliced_webs = []
         self.solve_section_properties()
         self.V_fail = []
         self.P_fail_C = []
@@ -285,6 +288,8 @@ class BridgeSolver:
             self.Qs.append(solver.get_max_Q())
             self.QsAllY.append(solver.get_Q())
             self.centroids.append(solver.centroid)
+            self.sliced_decks.append(solver.get_separated_deck())
+            self.sliced_webs.append(solver.get_sliced_webs())
 
     def flex_failure(self):
         for x in range(C.BRIDGE_LENGTH):
@@ -350,11 +355,15 @@ class BridgeSolver:
             else:
             """
 
+    def plate_buckling(self):
+        for x in range(C.BRIDGE_LENGTH):
+            pass
+
     @staticmethod
     def get_shear_buckling(t, h, a):
         return ((6*(math.pi**2)*C.E)/(12*(1-C.mu**2))) * ((t / h) ** 2 + (t / a) ** 2)
 
-    def solve_shear_buckling(self):
+    def shear_buckling(self):
         for x in range(C.BRIDGE_LENGTH):
             h_web = 0
             for rect in self.cross_sections[x]:
@@ -477,5 +486,5 @@ if __name__ == "__main__":
     bridge_solver.flex_failure()
     bridge_solver.shear_failure()
     bridge_solver.glue_fail()
-    bridge_solver.solve_shear_buckling()
+    bridge_solver.shear_buckling()
     bridge_solver.plot()
