@@ -33,7 +33,7 @@ class DrawCrossSection:
 
     def draw_animation(self):
         clock = pygame.time.Clock()
-        n = 600
+        n = 500
         run = True
         from main import Rectangle
         while run:
@@ -48,7 +48,7 @@ class DrawCrossSection:
             self.window.blit(pygame.transform.rotate(self.window, 180), (0, 0))
             pygame.display.flip()
             pygame.event.pump()
-            clock.tick(30)
+            clock.tick(60)
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
