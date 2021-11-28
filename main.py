@@ -47,6 +47,138 @@ class Rectangle:
     def get_properties(self):
         return self.w, self.h, self.y, self.x
 
+class Diagrams_case1:
+    """ Generates the functions representing moment and shear for the beeg train boi
+    need to loop through all train x positions, can find them
+
+    """
+    def __init__(self):
+        self.A = 0
+        self.B = 1060
+        self.P = 400 / 6
+        self.w_s = 176
+        self.c_s = 164
+        self.train_length = self.w_s * 3 + self.c_s * 2
+        self.forceA = 0
+        self.forceB = 0
+
+    def reaction_forces(self, train_x):
+        #if train_x > 424:
+            #print("hi")
+        if train_x + self.train_length < 1280:
+            self.forceB = (self.P * train_x + self.P * (train_x + self.w_s) + self.P * (train_x + self.w_s + self.c_s) +
+                           self.P * (train_x + 2*self.w_s + self.c_s) + self.P * (train_x + 2*self.w_s + 2*self.c_s) +
+                           self.P * (train_x + 3*self.w_s + 2*self.c_s)) / self.B
+            self.forceA = self.P * 6 - self.forceB
+        elif train_x + self.train_length < 1280 + self.w_s:
+            self.forceB = (self.P * train_x + self.P * (train_x + self.w_s) + self.P * (train_x + self.w_s + self.c_s) +
+                           self.P * (train_x + 2*self.w_s + self.c_s) + self.P * (train_x + 2*self.w_s + 2*self.c_s)
+                            ) / self.B
+            self.forceA = self.P * 5 - self.forceB
+        elif train_x + self.train_length < 1280 + self.w_s + self.c_s:
+            self.forceB = (self.P * train_x + self.P * (train_x + self.w_s) + self.P * (train_x + self.w_s + self.c_s) +
+                           self.P * (train_x + 2*self.w_s + self.c_s)) / self.B
+            self.forceA = self.P * 4 - self.forceB
+        elif train_x + self.train_length < 1280 + 2*self.w_s + self.c_s:
+            self.forceB = (self.P * train_x + self.P * (train_x + self.w_s) + self.P * (train_x + self.w_s + self.c_s)
+                           ) / self.B
+            self.forceA = self.P * 3 - self.forceB
+        elif train_x + self.train_length < 1280 + 2*self.w_s + 2*self.c_s:
+            self.forceB = (self.P * train_x + self.P * (train_x + self.w_s)) / self.B
+            self.forceA = self.P * 2 - self.forceB
+        elif train_x + self.train_length < 1280 + 3*self.w_s + 2*self.c_s:
+            self.forceB = (self.P * train_x) / self.B
+            self.forceA = self.P - self.forceB
+
+    def shear_force(self, x, train_x):
+        """ Returns the shear force at x mm from support A in N when the train is train_x mm from support A"""
+        self.reaction_forces(train_x)
+        #if x > 1100 and train_x > 1200:
+            #print("hi")
+        #if self.forceA < 0:
+            #print("hi")
+        if x < train_x and x < self.B:
+            return self.forceA
+        if x < train_x + self.w_s and x < self.B:
+            return self.forceA - self.P
+        elif x < train_x + self.w_s + self.c_s and x < self.B:
+            return self.forceA - 2*self.P
+        elif x < train_x + 2*self.w_s + self.c_s and x < self.B:
+            return self.forceA - 3*self.P
+        elif x < train_x + 2*self.w_s + 2*self.c_s and x < self.B:
+            return self.forceA - 4*self.P
+        elif x < train_x + 3*self.w_s + 2*self.c_s and x < self.B:
+            return self.forceA - 5*self.P
+
+        elif self.B < x < train_x:  # now there are loads right of the thing, so add B
+            return self.forceA + self.forceB
+        elif self.B < x < train_x + self.w_s:
+            return self.forceA + self.forceB - self.P
+        elif self.B < x < train_x + self.w_s + self.c_s:
+            return self.forceA + self.forceB - 2*self.P
+        elif self.B < x < train_x + 2*self.w_s + self.c_s:
+            return self.forceA + self.forceB - 3*self.P
+        elif self.B < x < train_x + 2*self.w_s + 2*self.c_s:
+            return self.forceA + self.forceB - 4*self.P
+        elif self.B < x < train_x + 3*self.w_s + 2*self.c_s:
+            return self.forceA + self.forceB - 5*self.P
+
+
+        elif x < self.B:
+            return -self.forceB
+        elif x >= self.B:
+            return 0 # code won't get here if the train is on the other side therefore it can always return 0
+
+        # print("hi")
+
+    def moment(self, x, train_x):
+        shear = self.shear_force(x, train_x)
+        if shear != self.shear_force(x-1, train_x):
+            return shear * x + self.shear_force(x-1, train_x)*x
+        return self.shear_force(x, train_x) * x
+
+
+    def plot_diagrams(self):
+        """ Plots the shear and bending moment diagrams"""
+        SFD_max = []
+        BMD_max = []
+        SFD_min = []
+        BMD_min = []
+
+        for x in range(1280): # take min vals
+            max_shear = 0
+            max_moment = 0
+            min_shear = 0
+            min_moment = 0
+            for train_x in range(1280):
+                shear = self.shear_force(x, train_x)
+                moment = self.moment(x, train_x)
+                if shear > max_shear:
+                    max_shear = shear
+                if shear < min_shear:
+                    min_shear = shear
+                if moment > max_moment:
+                    max_moment = moment
+                if moment < min_shear:
+                    min_moment = moment
+            # print(min_shear)
+            SFD_max.append(max_shear)
+            BMD_max.append(max_moment)
+            SFD_min.append(min_shear)
+            BMD_min.append(min_moment)
+        # print(1280-self.train_length, self.train_length)
+        # using the variable axs for multiple Axes
+        fig, axs1 = plt.subplots(1, 2)
+
+        # using tuple unpacking for multiple Axes
+        axs1[0].plot(SFD_max)
+        axs1[0].plot(SFD_min)
+        axs1[1].plot(BMD_max)
+        axs1[1].plot(BMD_min)
+        axs1[1].invert_yaxis()
+        axs1[0].legend(["Shear Force (N)"])
+        axs1[1].legend(["Moment (Nmm)"])
+        plt.show()
 
 class Diagrams:
     """ Generates the composite functions representing both moment diagrams based on a given P
@@ -60,18 +192,8 @@ class Diagrams:
         self.P = P
         self.Fby = (self.P2 * P + (self.P1 * P)) / self.B
         self.Fay = P * 2 - self.Fby
-      
-        self.P1_train = [x+52 for x in range(291)]
-        self.P2_train = [x+176 for x in self.P1_train]
-        self.P3_train = [x+164 for x in self.P2_train]
-        self.P4_train = [x+176 for x in self.P3_train]
-        self.P5_train = [x+164 for x in self.P4_train]
-        self.P6_train = [x+176 for x in self.P5_train]
-        self.P_train = 400/6
-        self.Fby_train = [(self.P1_train[x]*400/6 + self.P2_train[x]*400/6 + self.P3_train[x]*400/6 + self.P4_train[x]*400/6\
-                           + self.P5_train[x]*400/6 + self.P6_train[x]*400/6)/self.B for x in range(291)]
-        self.Fay_train = [400-x for x in self.Fby_train]
-     
+
+    '''
     def shear_force_train(self, x, i):
         """ Returns the shear force at x mm from support A in N, when the back of the train is at position i"""
         if x < self.B:
@@ -82,21 +204,21 @@ class Diagrams:
             elif self.P1_train[i] <= x < self.P2_train[i]:
                 return self.Fay_train[i] - self.P_train
             elif self.P2_train[i] <= x < self.P3_train[i]:
-                return self.Fay_train[i] - self.P_train*2
+                return self.Fay_train[i] - self.P_train * 2
             elif self.P3_train[i] <= x < self.P4_train[i]:
-                return self.Fay_train[i] - self.P_train*3
+                return self.Fay_train[i] - self.P_train * 3
             elif self.P4_train[i] <= x < self.P5_train[i]:
-                return self.Fay_train[i] - self.P_train*4
+                return self.Fay_train[i] - self.P_train * 4
             elif self.P5_train[i] <= x < self.P6_train[i]:
-                return self.Fay_train[i] - self.P_train*5
+                return self.Fay_train[i] - self.P_train * 5
             elif self.P6_train[i] <= x:
                 return self.Fay_train[i] - 400
         else:
             if self.P5_train[i] <= x < self.P6_train[i]:
-                return 400 - self.P_train*5
+                return 400 - self.P_train * 5
             elif self.P6_train[i] <= x:
                 return 0
-        
+
     def moment_train(self, x, i):
         """ Returns the moment at x mm from support A in Nmm, when the back of the train is at position i"""
         if x < self.B:
@@ -105,28 +227,41 @@ class Diagrams:
             elif self.A <= x < self.P1_train[i]:
                 return self.Fay_train[i] * x
             elif self.P1_train[i] <= x < self.P2_train[i]:
-                return (self.Fay_train[i] * self.P1_train[i]) + (self.Fay_train[i] - self.P_train) * (x - self.P1_train[i])
+                return (self.Fay_train[i] * self.P1_train[i]) + (self.Fay_train[i] - self.P_train) * (
+                            x - self.P1_train[i])
             elif self.P2_train[i] <= x < self.P3_train[i]:
-                return (self.Fay_train[i] * self.P1_train[i]) + (self.Fay_train[i] - self.P_train) * 176 + (self.Fay_train[i] - self.P_train*2) * (x - self.P2_train[i])
+                return (self.Fay_train[i] * self.P1_train[i]) + (self.Fay_train[i] - self.P_train) * 176 + (
+                            self.Fay_train[i] - self.P_train * 2) * (x - self.P2_train[i])
             elif self.P3_train[i] <= x < self.P4_train[i]:
-                return ((self.Fay_train[i]*self.P1_train[i]) + (self.Fay_train[i]-self.P_train)*176 + (self.Fay_train[i]-self.P_train*2)*164\
-                        + (self.Fay_train[i]-self.P_train*3)*(x-self.P3_train[i]))
+                return ((self.Fay_train[i] * self.P1_train[i]) + (self.Fay_train[i] - self.P_train) * 176 + (
+                            self.Fay_train[i] - self.P_train * 2) * 164 \
+                        + (self.Fay_train[i] - self.P_train * 3) * (x - self.P3_train[i]))
             elif self.P4_train[i] <= x < self.P5_train[i]:
-                return ((self.Fay_train[i]*self.P1_train[i]) + (self.Fay_train[i]-self.P_train)*176 + (self.Fay_train[i]-self.P_train*2)*164\
-                        + (self.Fay_train[i]-self.P_train*3)*176 + (self.Fay_train[i]-self.P_train*4)*(x-self.P4_train[i]))
+                return ((self.Fay_train[i] * self.P1_train[i]) + (self.Fay_train[i] - self.P_train) * 176 + (
+                            self.Fay_train[i] - self.P_train * 2) * 164 \
+                        + (self.Fay_train[i] - self.P_train * 3) * 176 + (self.Fay_train[i] - self.P_train * 4) * (
+                                    x - self.P4_train[i]))
             elif self.P5_train[i] <= x < self.P6_train[i]:
-                return ((self.Fay_train[i]*self.P1_train[i]) + (self.Fay_train[i]-self.P_train)*176 + (self.Fay_train[i]-self.P_train*2)*164\
-                        + (self.Fay_train[i]-self.P_train*3)*176 + (self.Fay_train[i]-self.P_train*4)*164 + (self.Fay_train[i]-self.P_train*5)*(x-self.P5_train[i]))
+                return ((self.Fay_train[i] * self.P1_train[i]) + (self.Fay_train[i] - self.P_train) * 176 + (
+                            self.Fay_train[i] - self.P_train * 2) * 164 \
+                        + (self.Fay_train[i] - self.P_train * 3) * 176 + (
+                                    self.Fay_train[i] - self.P_train * 4) * 164 + (
+                                    self.Fay_train[i] - self.P_train * 5) * (x - self.P5_train[i]))
             elif self.P6_train[i] <= x:
-                return ((self.Fay_train[i]*self.P1_train[i]) + (self.Fay_train[i]-self.P_train)*176 + (self.Fay_train[i]-self.P_train*2)*164\
-                        + (self.Fay_train[i]-self.P_train*3)*176 + (self.Fay_train[i]-self.P_train*4)*164 + (self.Fay_train[i]-self.P_train*5)*176))
-        else:
-            if self.P5_train[i] <= x < self.P6_train[i]:
-                return ((self.Fay_train[i]*self.P1_train[i])+(self.Fay_train[i]-self.P_train)*176+(self.Fay_train[i]-self.P_train*2)*(self.B-self.P2_train[i])\
-                        +(400-self.P_train*2)*(self.P3_train[i]-self.B)+(400-self.P_train*3)*164\
-                        +(400-self.P_train*4)*176+(400-self.P_train*5)*(x-self.P5_train[i]))
+                return ((self.Fay_train[i] * self.P1_train[i]) + (self.Fay_train[i] - self.P_train) * 176 + (
+                            self.Fay_train[i] - self.P_train * 2) * 164 \
+                        + (self.Fay_train[i] - self.P_train * 3) * 176 + (
+                                    self.Fay_train[i] - self.P_train * 4) * 164 + (
+                                    self.Fay_train[i] - self.P_train * 5) * 176))
+                else:
+                if self.P5_train[i] <= x < self.P6_train[i]:
+                    return ((self.Fay_train[i] * self.P1_train[i]) + (self.Fay_train[i] - self.P_train) * 176 + (
+                                self.Fay_train[i] - self.P_train * 2) * (self.B - self.P2_train[i]) \
+                            + (400 - self.P_train * 2) * (self.P3_train[i] - self.B) + (400 - self.P_train * 3) * 164 \
+                            + (400 - self.P_train * 4) * 176 + (400 - self.P_train * 5) * (x - self.P5_train[i]))
             elif self.P6_train[i] <= x:
                 return 0
+    '''
 
     def shear_force(self, x):
         """ Returns the shear force at x mm from support A in N"""
@@ -151,7 +286,7 @@ class Diagrams:
             return (self.Fay * self.P1) + (self.Fay - self.P) * (x - self.P1)
         elif self.B <= x < self.P2:
             return (self.Fay * self.P1) + (self.Fay - self.P) * (self.B - self.P1) + (self.Fay - self.P + self.Fby) * (
-                        x - self.B)
+                    x - self.B)
         elif self.P2 <= x:
             return 0
 
@@ -159,16 +294,16 @@ class Diagrams:
         """ Plots the shear and bending moment diagrams"""
         SFD = []
         BMD = []
-        SFD_train = []
-        BMD_train = []
+        # SFD_train = []
+        # BMD_train = []
         for x in range(1280):
             SFD.append(self.shear_force(x))
             BMD.append(self.moment(x))
-            SFD_train.append(self.shear_force_train(x, i))
-            BMD_train.append(self.moment_train(x, i))
+            # SFD_train.append(self.shear_force_train(x, i))
+            # BMD_train.append(self.moment_train(x, i))
 
         # using the variable axs for multiple Axes
-        fig, axs = plt.subplots(1, 4)
+        fig, axs = plt.subplots(1, 2)
 
         # using tuple unpacking for multiple Axes
         axs[0].plot(SFD)
@@ -176,11 +311,11 @@ class Diagrams:
         axs[1].invert_yaxis()
         axs[0].legend(["Shear Force (N)"])
         axs[1].legend(["Moment (Nmm)"])
-        axs[2].plot(SFD_train)
-        axs[3].plot(BMD_train)
-        axs[3].invert_yaxis()
-        axs[2].legend(["Train Shear Force (N)"])
-        axs[3].legend(["Train Moment (Nmm)"])
+        # axs[2].plot(SFD_train)
+        # axs[3].plot(BMD_train)
+        # axs[3].invert_yaxis()
+        # axs[2].legend(["Train Shear Force (N)"])
+        # axs[3].legend(["Train Moment (Nmm)"])
         plt.show()
 
 
@@ -213,7 +348,7 @@ class CrossSectionSolver:
         area_total = 0
         for rect in section:
             h = abs(rect.h)
-            #print(rect.h, "Centroid")
+            # print(rect.h, "Centroid")
             area_section = rect.w * h
             numerator += area_section * (abs(rect.y) + (h / 2))
             area_total += area_section
@@ -234,7 +369,7 @@ class CrossSectionSolver:
         for rect in self.sections:
             if rect.h + rect.y > max_height:
                 max_height = rect.h + rect.y
-            #print(rect.h, 'Q')
+            # print(rect.h, 'Q')
         precision = C.PRECISION
         for i in range(1, int(max_height * precision)):
             A = 0
@@ -273,9 +408,9 @@ class CrossSectionSolver:
         contact_areas_y = {}
         for n, rect in enumerate(self.sections[:-1]):
             if rect.ID == C.DECK_ID:
-                #print(rect.get_properties(), "RECT")
-                for other_rect in list(self.sections[:n]+self.sections[n+1:]):
-                    #print(other_rect.get_properties(), "OTHER_RECT")
+                # print(rect.get_properties(), "RECT")
+                for other_rect in list(self.sections[:n] + self.sections[n + 1:]):
+                    # print(other_rect.get_properties(), "OTHER_RECT")
                     contact_area, y = rect.is_touching(other_rect)
 
                     if contact_area and y:
@@ -313,7 +448,8 @@ class CrossSectionSolver:
                 delete_list = []
                 for rect_p in plate_rects:
                     for rect_joint in joint_rects:
-                        if round(plate_rects[c].w, 2) == round(rect_joint.w, 2) and round(plate_rects[c].x, 2) == round(rect_joint.x, 2):
+                        if round(plate_rects[c].w, 2) == round(rect_joint.w, 2) and round(plate_rects[c].x, 2) == round(
+                                rect_joint.x, 2):
                             delete_list.append(rect_p)
                         elif round(plate_rects[c].w, 2) == 0:
                             delete_list.append(rect_p)
@@ -339,7 +475,7 @@ class CrossSectionSolver:
         case_n = []
         for rect in self.sections:
             if rect.ID == 'WEB':
-                sliced_web = Rectangle(rect.w, rect.d_bottom+rect.height-self.centroid, rect.d_bottom, rect.x_pos)
+                sliced_web = Rectangle(rect.w, rect.d_bottom + rect.height - self.centroid, rect.d_bottom, rect.x_pos)
                 sliced_webs.append(sliced_web)
                 case_n.append(3)
 
@@ -394,8 +530,9 @@ class BridgeSolver:
                     if rect.h + rect.y > max_height:
                         max_height = rect.h + rect.y
                 self.P_fail_C.append(min(
-                    ((C.SigC * self.Is[x]) / (max_height - self.centroids[x])) / abs(self.BMD[x]/C.P), C.MAX_FORCE))
-                self.P_fail_T.append(min(C.MAX_FORCE, ((C.SigT * self.Is[x]) / abs(self.centroids[x])) / (self.BMD[x]/C.P)))
+                    ((C.SigC * self.Is[x]) / (max_height - self.centroids[x])) / abs(self.BMD[x] / C.P), C.MAX_FORCE))
+                self.P_fail_T.append(
+                    min(C.MAX_FORCE, ((C.SigT * self.Is[x]) / abs(self.centroids[x])) / (self.BMD[x] / C.P)))
             elif self.BMD[x] < 0:
                 max_height = 0
                 for rect in self.cross_sections[x]:
@@ -403,8 +540,10 @@ class BridgeSolver:
                         max_height = rect.h + rect.y
                 self.P_fail_C.append(min(C.MAX_FORCE, ((C.SigC * self.Is[x]) / abs(
                     self.centroids[x])) / abs(
-                                                 self.BMD[x]/C.P)))
-                self.P_fail_T.append(min(C.MAX_FORCE, ((C.SigT * self.Is[x]) / abs(max_height - self.centroids[x])) /abs(self.BMD[x]/C.P)))
+                    self.BMD[x] / C.P)))
+                self.P_fail_T.append(min(C.MAX_FORCE,
+                                         ((C.SigT * self.Is[x]) / abs(max_height - self.centroids[x])) / abs(
+                                             self.BMD[x] / C.P)))
 
     def shear_failure(self):
         # Vfail = (Tfail * I * B) / Q
@@ -426,7 +565,7 @@ class BridgeSolver:
         for x in range(C.BRIDGE_LENGTH):
             contact_areas = {}
             for i, rect in enumerate(self.cross_sections[x][:-1]):
-                for other_rects in list(self.cross_sections[x][:i]+self.cross_sections[x][i+1:]):
+                for other_rects in list(self.cross_sections[x][:i] + self.cross_sections[x][i + 1:]):
                     if rect.ID == C.DECK_ID:
                         contact_area, y_glue = rect.is_touching(other_rects)
                         if contact_area and y_glue:
@@ -442,8 +581,8 @@ class BridgeSolver:
                 if sum(contact_area) < min_sum:
                     min_sum = sum(contact_area)
                     y_smallest = y
-                min_Q = self.QsAllY[x][int(y*C.PRECISION)-1]
-                v_fail = (C.TauG * self.Is[x] * sum(contact_area))/min_Q
+                min_Q = self.QsAllY[x][int(y * C.PRECISION) - 1]
+                v_fail = (C.TauG * self.Is[x] * sum(contact_area)) / min_Q
                 if y != C.NO_GLUE:
                     v_fail_glue_section.append(v_fail)
 
@@ -471,13 +610,13 @@ class BridgeSolver:
                     for i in range(len(sliced_deck)):
                         rect = self.sliced_decks[x][0][n][i]
                         case_n = self.sliced_decks[x][1][n][i]
-                        if case_n == 1:
+                        if case_n == 2:
                             # print(f"Case 1: {rect.get_properties()}")
                             up_or_down = rect.y - self.centroids[x]
                             sigma_crits.append([self.case_1(rect.h, rect.w), up_or_down])
 
                             # print(f"Case 1 Sigma: {self.case_1(rect.h, rect.w)}")
-                        elif case_n == 2:
+                        elif case_n == 1:
                             # print(f"Case 2: {rect.get_properties()}")
                             up_or_down = rect.y - self.centroids[x]
                             sigma_crits.append([self.case_2(rect.h, rect.w), up_or_down])
@@ -534,7 +673,7 @@ class BridgeSolver:
 
     @staticmethod
     def get_shear_buckling(t, h, a):
-        return ((5*(math.pi**2)*C.E)/(12*(1-C.mu**2))) * ((t / h) ** 2 + (t / a) ** 2)
+        return ((5 * (math.pi ** 2) * C.E) / (12 * (1 - C.mu ** 2))) * ((t / h) ** 2 + (t / a) ** 2)
 
     def shear_buckling(self):
         for x in range(C.BRIDGE_LENGTH):
@@ -567,18 +706,17 @@ class BridgeSolver:
 
         # Below: Area of the min triangle moved down by the max and added to a rectangle to normalize it back to center
         triangle_2 = (0.5 * (min_curvature - max_curvature) * (span_L - load_L)) * ((span_L - load_L) / 3) + (
-                    (span_L - load_L) * (max_curvature)) * ((span_L - load_L) / 2)
+                (span_L - load_L) * (max_curvature)) * ((span_L - load_L) / 2)
 
         triangle_to_support = triangle_1 + triangle_2
 
         # Always 1/2 because considering midspan, doesn't depend on span size
         D_mid = ((1 / 2 * triangle_to_support - triangle_to_mid))
         print(D_mid)
-            
+
     def FOS(self):
         '''solves for FOS of Design 0 under Load case 1'''
         pass
-      
 
     def plot(self):
         min_P_comp = min(self.P_fail_C)
@@ -639,9 +777,9 @@ def generate_cross_sections(arch):
         y_upper = arch.over_arch(x)
         deck = [100, 1.27, 90, 0]
         arch_rect = [1.27, 90, 0, 10]
-        arch_rect_2 = [1.27, 90, 0, (90-1.27)]
-        tab_1 = [10, 1.27, (90 - 1.27), 10+1.27]
-        tab_2 = [10, 1.27, (90 - 1.27), (90-1.27-10)]
+        arch_rect_2 = [1.27, 90, 0, (90 - 1.27)]
+        tab_1 = [10, 1.27, (90 - 1.27), 10 + 1.27]
+        tab_2 = [10, 1.27, (90 - 1.27), (90 - 1.27 - 10)]
         """
         if y_upper > 0:
             cross_sections.append([Rectangle(deck[0], deck[1], deck[2], deck[3], C.DECK_ID),
@@ -663,19 +801,19 @@ def generate_cross_sections(arch):
                                ])
         """
         t = 1.27
-        deck = [100, t, 75-t, 0]  # top is 75+t
-        tab_1 = [10, t, (75 - 2*t), 10 + t]
-        tab_2 = [10, t, (75 - 2* t), (90 - t - 10)]
+        deck = [100, t, 75 - t, 0]  # top is 75+t
+        tab_1 = [10, t, (75 - 2 * t), 10 + t]
+        tab_2 = [10, t, (75 - 2 * t), (90 - t - 10)]
 
         cross_sections.append([Rectangle(deck[0], 1.27, deck[2], deck[3], C.DECK_ID),  # Deck
-                               Rectangle(t, (deck[2]-t), t, 10, C.WEB_ID),  # Web1
-                               Rectangle(t, (deck[2]-t), t, (90 - t), C.WEB_ID),  # Web2
-                               Rectangle(80, t, 0, 10+t, C.DECK_ID),  # bottom
+                               Rectangle(t, (deck[2] - t), t, 10, C.WEB_ID),  # Web1
+                               Rectangle(t, (deck[2] - t), t, (90 - t), C.WEB_ID),  # Web2
+                               Rectangle(80, t, 0, 10 + t, C.DECK_ID),  # bottom
                                Rectangle(tab_1[0], tab_1[1], tab_1[2], tab_1[3], C.GLUE_TAB_ID),  # Glue_tab1
                                Rectangle(tab_2[0], tab_2[1], tab_2[2], tab_2[3], C.GLUE_TAB_ID)])  # Glue tab 2
     """
         y_under = arch.under_arch(x)
-        
+
         if y_under < 0:
             arch_rect = [1.27, y_under-y_upper, 0, 0]
             cross_sections.append([[deck[0], deck[1], abs(y_under), 0], arch_rect, [arch_rect[0], arch_rect[1], arch_rect[2], 98], [deck[0], deck[1], 0, 0]])
@@ -690,16 +828,19 @@ def generate_cross_sections(arch):
 
 if __name__ == "__main__":
     diagrams = Diagrams(C.P)
+    train_diagrams = Diagrams_case1()
     diagrams.plot_diagrams(0)
+    train_diagrams.plot_diagrams()
     cross_sections = generate_cross_sections(Arch())
-    #cs = CrossSectionSolver(cross_sections[0])
-    #cs.get_separated_plates()
+    # cs = CrossSectionSolver(cross_sections[0])
+    # cs.get_separated_plates()
     SFD = []
     BMD = []
     import c_s_visualizer
-    #cs = c_s_visualizer.DrawCrossSection(cross_sections, None)
-    #cs.draw_animation()
-    #c_s_visualizer.DrawElevation(cross_sections).draw(549, None)
+
+    # cs = c_s_visualizer.DrawCrossSection(cross_sections, None)
+    # cs.draw_animation()
+    # c_s_visualizer.DrawElevation(cross_sections).draw(549, None)
     for x in range(1280):
         SFD.append(diagrams.shear_force(x))
         BMD.append(diagrams.moment(x))
