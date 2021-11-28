@@ -1,7 +1,5 @@
 """
-TODO: Implement glue shear failure
-      Implement plate buckling
-      Implement shear buckling
+TODO: Implement plate buckling
 """
 
 import matplotlib.pyplot as plt
@@ -62,6 +60,73 @@ class Diagrams:
         self.P = P
         self.Fby = (self.P2 * P + (self.P1 * P)) / self.B
         self.Fay = P * 2 - self.Fby
+      
+        self.P1_train = [x+52 for x in range(291)]
+        self.P2_train = [x+176 for x in self.P1_train]
+        self.P3_train = [x+164 for x in self.P2_train]
+        self.P4_train = [x+176 for x in self.P3_train]
+        self.P5_train = [x+164 for x in self.P4_train]
+        self.P6_train = [x+176 for x in self.P5_train]
+        self.P_train = 400/6
+        self.Fby_train = [(self.P1_train[x]*400/6 + self.P2_train[x]*400/6 + self.P3_train[x]*400/6 + self.P4_train[x]*400/6\
+                           + self.P5_train[x]*400/6 + self.P6_train[x]*400/6)/self.B for x in range(291)]
+        self.Fay_train = [400-x for x in self.Fby_train]
+     
+    def shear_force_train(self, x, i):
+        """ Returns the shear force at x mm from support A in N, when the back of the train is at position i"""
+        if x < self.B:
+            if x < self.A:
+                return 0
+            elif self.A <= x < self.P1_train[i]:
+                return self.Fay_train[i]
+            elif self.P1_train[i] <= x < self.P2_train[i]:
+                return self.Fay_train[i] - self.P_train
+            elif self.P2_train[i] <= x < self.P3_train[i]:
+                return self.Fay_train[i] - self.P_train*2
+            elif self.P3_train[i] <= x < self.P4_train[i]:
+                return self.Fay_train[i] - self.P_train*3
+            elif self.P4_train[i] <= x < self.P5_train[i]:
+                return self.Fay_train[i] - self.P_train*4
+            elif self.P5_train[i] <= x < self.P6_train[i]:
+                return self.Fay_train[i] - self.P_train*5
+            elif self.P6_train[i] <= x:
+                return self.Fay_train[i] - 400
+        else:
+            if self.P5_train[i] <= x < self.P6_train[i]:
+                return 400 - self.P_train*5
+            elif self.P6_train[i] <= x:
+                return 0
+        
+    def moment_train(self, x, i):
+        """ Returns the moment at x mm from support A in Nmm, when the back of the train is at position i"""
+        if x < self.B:
+            if x < self.A:
+                return 0
+            elif self.A <= x < self.P1_train[i]:
+                return self.Fay_train[i] * x
+            elif self.P1_train[i] <= x < self.P2_train[i]:
+                return (self.Fay_train[i] * self.P1_train[i]) + (self.Fay_train[i] - self.P_train) * (x - self.P1_train[i])
+            elif self.P2_train[i] <= x < self.P3_train[i]:
+                return (self.Fay_train[i] * self.P1_train[i]) + (self.Fay_train[i] - self.P_train) * 176 + (self.Fay_train[i] - self.P_train*2) * (x - self.P2_train[i])
+            elif self.P3_train[i] <= x < self.P4_train[i]:
+                return ((self.Fay_train[i]*self.P1_train[i]) + (self.Fay_train[i]-self.P_train)*176 + (self.Fay_train[i]-self.P_train*2)*164\
+                        + (self.Fay_train[i]-self.P_train*3)*(x-self.P3_train[i]))
+            elif self.P4_train[i] <= x < self.P5_train[i]:
+                return ((self.Fay_train[i]*self.P1_train[i]) + (self.Fay_train[i]-self.P_train)*176 + (self.Fay_train[i]-self.P_train*2)*164\
+                        + (self.Fay_train[i]-self.P_train*3)*176 + (self.Fay_train[i]-self.P_train*4)*(x-self.P4_train[i]))
+            elif self.P5_train[i] <= x < self.P6_train[i]:
+                return ((self.Fay_train[i]*self.P1_train[i]) + (self.Fay_train[i]-self.P_train)*176 + (self.Fay_train[i]-self.P_train*2)*164\
+                        + (self.Fay_train[i]-self.P_train*3)*176 + (self.Fay_train[i]-self.P_train*4)*164 + (self.Fay_train[i]-self.P_train*5)*(x-self.P5_train[i]))
+            elif self.P6_train[i] <= x:
+                return ((self.Fay_train[i]*self.P1_train[i]) + (self.Fay_train[i]-self.P_train)*176 + (self.Fay_train[i]-self.P_train*2)*164\
+                        + (self.Fay_train[i]-self.P_train*3)*176 + (self.Fay_train[i]-self.P_train*4)*164 + (self.Fay_train[i]-self.P_train*5)*176))
+        else:
+            if self.P5_train[i] <= x < self.P6_train[i]:
+                return ((self.Fay_train[i]*self.P1_train[i])+(self.Fay_train[i]-self.P_train)*176+(self.Fay_train[i]-self.P_train*2)*(self.B-self.P2_train[i])\
+                        +(400-self.P_train*2)*(self.P3_train[i]-self.B)+(400-self.P_train*3)*164\
+                        +(400-self.P_train*4)*176+(400-self.P_train*5)*(x-self.P5_train[i]))
+            elif self.P6_train[i] <= x:
+                return 0
 
     def shear_force(self, x):
         """ Returns the shear force at x mm from support A in N"""
@@ -77,7 +142,7 @@ class Diagrams:
             return 0
 
     def moment(self, x):
-        """ Returns the moment at x mm from support A in Nm"""
+        """ Returns the moment at x mm from support A in Nmm"""
         if x < self.A:
             return 0
         elif self.A <= x < self.P1:
@@ -90,16 +155,20 @@ class Diagrams:
         elif self.P2 <= x:
             return 0
 
-    def plot_diagrams(self):
+    def plot_diagrams(self, i):
         """ Plots the shear and bending moment diagrams"""
         SFD = []
         BMD = []
+        SFD_train = []
+        BMD_train = []
         for x in range(1280):
             SFD.append(self.shear_force(x))
             BMD.append(self.moment(x))
+            SFD_train.append(self.shear_force_train(x, i))
+            BMD_train.append(self.moment_train(x, i))
 
         # using the variable axs for multiple Axes
-        fig, axs = plt.subplots(1, 2)
+        fig, axs = plt.subplots(1, 4)
 
         # using tuple unpacking for multiple Axes
         axs[0].plot(SFD)
@@ -107,6 +176,11 @@ class Diagrams:
         axs[1].invert_yaxis()
         axs[0].legend(["Shear Force (N)"])
         axs[1].legend(["Moment (Nmm)"])
+        axs[2].plot(SFD_train)
+        axs[3].plot(BMD_train)
+        axs[3].invert_yaxis()
+        axs[2].legend(["Train Shear Force (N)"])
+        axs[3].legend(["Train Moment (Nmm)"])
         plt.show()
 
 
@@ -500,6 +574,11 @@ class BridgeSolver:
         # Always 1/2 because considering midspan, doesn't depend on span size
         D_mid = ((1 / 2 * triangle_to_support - triangle_to_mid))
         print(D_mid)
+            
+    def FOS(self):
+        '''solves for FOS of Design 0 under Load case 1'''
+        pass
+      
 
     def plot(self):
         min_P_comp = min(self.P_fail_C)
@@ -611,7 +690,7 @@ def generate_cross_sections(arch):
 
 if __name__ == "__main__":
     diagrams = Diagrams(C.P)
-    diagrams.plot_diagrams()
+    diagrams.plot_diagrams(0)
     cross_sections = generate_cross_sections(Arch())
     #cs = CrossSectionSolver(cross_sections[0])
     #cs.get_separated_plates()
