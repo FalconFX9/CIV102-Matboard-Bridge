@@ -408,7 +408,7 @@ class CrossSectionSolver:
         contact_areas_y = {}
         for n, rect in enumerate(self.sections[:-1]):
             if rect.ID == C.DECK_ID:
-                # print(rect.get_properties(), "RECT")
+                # print(rect.get_properties(), rect.ID, "RECT")
                 for other_rect in list(self.sections[:n] + self.sections[n + 1:]):
                     # print(other_rect.get_properties(), "OTHER_RECT")
                     contact_area, y = rect.is_touching(other_rect)
@@ -610,16 +610,18 @@ class BridgeSolver:
                     for i in range(len(sliced_deck)):
                         rect = self.sliced_decks[x][0][n][i]
                         case_n = self.sliced_decks[x][1][n][i]
-                        if case_n == 2:
-                            # print(f"Case 1: {rect.get_properties()}")
-                            up_or_down = rect.y - self.centroids[x]
-                            sigma_crits.append([self.case_1(rect.h, rect.w), up_or_down])
+                        if abs(rect.w) < 100 and rect.w > 0:
+                            print(f"Width: {rect.w}")
+                            if case_n == 2:
+                                # print(f"Case 1: {rect.get_properties()}")
+                                up_or_down = rect.y - self.centroids[x]
+                                sigma_crits.append([self.case_1(rect.h, rect.w), up_or_down])
 
-                            # print(f"Case 1 Sigma: {self.case_1(rect.h, rect.w)}")
-                        elif case_n == 1:
-                            # print(f"Case 2: {rect.get_properties()}")
-                            up_or_down = rect.y - self.centroids[x]
-                            sigma_crits.append([self.case_2(rect.h, rect.w), up_or_down])
+                                # print(f"Case 1 Sigma: {self.case_1(rect.h, rect.w)}")
+                            elif case_n == 1:
+                                # print(f"Case 2: {rect.get_properties()}")
+                                up_or_down = rect.y - self.centroids[x]
+                                sigma_crits.append([self.case_2(rect.h, rect.w), up_or_down])
 
                             # print(f"Case 2 Sigma: {self.case_2(rect.h, rect.w)}")
 
@@ -680,7 +682,7 @@ class BridgeSolver:
             h_web = 0
             for rect in self.cross_sections[x]:
                 h_web = max(rect.h, h_web)
-            a = 550  # temporary
+            a = 150  # temporary
             tau = self.get_shear_buckling(C.DIAPHRAGM_THICKNESS, h_web, a)
             q, y = self.Qs[x]
             t = C.MATBOARD_THICKNESS  # CALCULATE IN CROSS-SECTION SOLVER
@@ -754,17 +756,30 @@ class Arch:
 
     @staticmethod
     def under_arch(x):
-        y = 0.0016 * x * (x - 788) - 50
+        y = abs(0.2*(x-549)) - 100
+
         if y < 0:
-            return y
+            return abs(y)
         else:
             return 0
 
     @staticmethod
     def over_arch(x):
-        y = -0.0017 * (x - 788) * (x - 1280)
+        #  y = -0.0017 * (x - 788) * (x - 1280)
+        if x < 1060:
+            y = -abs(0.3*(x-1059)) + 150
+        else:
+            y = -abs(0.2*(x-1059)) + 150
         if y > 0:
             return y
+        else:
+            return 0
+
+    @staticmethod
+    def pi_beam_remover(x):
+        y = abs(0.2*(x-1280)) - 40
+        if y < 0 and x > 1059:
+            return abs(y)
         else:
             return 0
 
@@ -775,31 +790,43 @@ def generate_cross_sections(arch):
     deck = [100, 1.27, 0]
     for x in range(bridge_length):
         y_upper = arch.over_arch(x)
-        deck = [100, 1.27, 90, 0]
-        arch_rect = [1.27, 90, 0, 10]
-        arch_rect_2 = [1.27, 90, 0, (90 - 1.27)]
-        tab_1 = [10, 1.27, (90 - 1.27), 10 + 1.27]
-        tab_2 = [10, 1.27, (90 - 1.27), (90 - 1.27 - 10)]
+        y_under = arch.under_arch(x)
+        pi_remove = arch.pi_beam_remover(x)
         """
-        if y_upper > 0:
-            cross_sections.append([Rectangle(deck[0], deck[1], deck[2], deck[3], C.DECK_ID),
-                                   Rectangle(arch_rect[0], arch_rect[1], arch_rect[2], arch_rect[3], C.WEB_ID),
-                                   Rectangle(arch_rect_2[0], arch_rect_2[1], arch_rect_2[2], arch_rect_2[3], C.WEB_ID),
-                                   Rectangle(tab_1[0], tab_1[1], tab_1[2], tab_1[3], C.GLUE_TAB_ID),
-                                   Rectangle(tab_2[0], tab_2[1], tab_2[2], tab_2[3], C.GLUE_TAB_ID),
-                                   Rectangle(arch_rect[0], y_upper, 91.27, 10),
-                                   Rectangle(arch_rect[0], y_upper, 91.27, 90-1.27),
-                                   Rectangle(tab_1[0], tab_1[1], 91.27, tab_1[3], C.GLUE_TAB_ID),
-                                   Rectangle(tab_2[0], tab_2[1], 91.27, tab_2[3], C.GLUE_TAB_ID),
-                                   ])
-        else:
-        cross_sections.append([Rectangle(deck[0], deck[1], deck[2], deck[3], C.DECK_ID),
-                               Rectangle(arch_rect[0], arch_rect[1], arch_rect[2], arch_rect[3], C.WEB_ID),
-                               Rectangle(arch_rect_2[0], arch_rect_2[1], arch_rect_2[2], arch_rect_2[3], C.WEB_ID),
-                               Rectangle(tab_1[0], tab_1[1], tab_1[2], tab_1[3], C.GLUE_TAB_ID),
-                               Rectangle(tab_2[0], tab_2[1], tab_2[2], tab_2[3], C.GLUE_TAB_ID)
+        deck = [120, 1.27, 50, 0]
+        arch_rect = [1.27, 50, 0, 10-1.27]
+        arch_rect_2 = [1.27, 50, 0, (110)]
+        tab_1 = [10, 1.27, (50 - 1.27), 10]
+        tab_2 = [10, 1.27, (50 - 1.27), (110 - 10 - 1.27)]
+        """
+        deck = [100, 1.27, 75, 0]
+        arch_rect = [1.27, 75, 0, 10 - 1.27]
+        arch_rect_2 = [1.27, 75, 0, (90)]
+        tab_1 = [10, 1.27, (75 - 1.27), 10]
+        tab_2 = [10, 1.27, (75 - 1.27), (90-10)]
+        cross_sections.append([Rectangle(deck[0], deck[1], deck[2]+y_under-pi_remove, deck[3], C.DECK_ID),
+                               Rectangle(arch_rect[0], arch_rect[1]+y_under-pi_remove, arch_rect[2], arch_rect[3], C.WEB_ID),
+                               Rectangle(arch_rect_2[0], arch_rect_2[1]+y_under-pi_remove, arch_rect_2[2], arch_rect_2[3], C.WEB_ID),
+                               Rectangle(tab_1[0], tab_1[1], tab_1[2]+y_under-pi_remove, tab_1[3], C.GLUE_TAB_ID),
+                               Rectangle(tab_2[0], tab_2[1], tab_2[2]+y_under-pi_remove, tab_2[3], C.GLUE_TAB_ID),
+                               Rectangle(arch_rect[0], y_upper, deck[2]+1.27+y_under-pi_remove, 0),
+                               Rectangle(arch_rect[0], y_upper, deck[2]+1.27+y_under-pi_remove, 100-1.27),
+                               Rectangle(tab_1[0]-1.27, tab_1[1], deck[2]+1.27+y_under-pi_remove, 1.27, C.GLUE_TAB_ID),
+                               Rectangle(tab_2[0]-1.27, tab_2[1], deck[2]+1.27+y_under-pi_remove, 100-1.27-10, C.GLUE_TAB_ID),
                                ])
         """
+        cross_sections.append([Rectangle(100, 2.54, 121.27, 0, C.DECK_ID),
+                              Rectangle(1.27, 120, 1.27, 15, C.WEB_ID),
+                              Rectangle(1.27, 120, 1.27, 15+68, C.WEB_ID),
+                            Rectangle(70, 1.27, 0, 15, C.DECK_ID)
+
+        ])
+            cross_sections.append([Rectangle(deck[0], deck[1], deck[2]+y_under, deck[3], C.DECK_ID),
+                                   Rectangle(arch_rect[0], arch_rect[1]+y_under, arch_rect[2], arch_rect[3], C.WEB_ID),
+                                   Rectangle(arch_rect_2[0], arch_rect_2[1]+y_under, arch_rect_2[2], arch_rect_2[3], C.WEB_ID),
+                                   Rectangle(tab_1[0], tab_1[1], tab_1[2]+y_under, tab_1[3], C.GLUE_TAB_ID),
+                                   Rectangle(tab_2[0], tab_2[1], tab_2[2]+y_under, tab_2[3], C.GLUE_TAB_ID)
+                                   ])
         t = 1.27
         deck = [100, t, 75 - t, 0]  # top is 75+t
         tab_1 = [10, t, (75 - 2 * t), 10 + t]
@@ -811,7 +838,6 @@ def generate_cross_sections(arch):
                                Rectangle(80, t, 0, 10 + t, C.DECK_ID),  # bottom
                                Rectangle(tab_1[0], tab_1[1], tab_1[2], tab_1[3], C.GLUE_TAB_ID),  # Glue_tab1
                                Rectangle(tab_2[0], tab_2[1], tab_2[2], tab_2[3], C.GLUE_TAB_ID)])  # Glue tab 2
-    """
         y_under = arch.under_arch(x)
 
         if y_under < 0:
@@ -828,19 +854,19 @@ def generate_cross_sections(arch):
 
 if __name__ == "__main__":
     diagrams = Diagrams(C.P)
-    train_diagrams = Diagrams_case1()
-    diagrams.plot_diagrams(0)
-    train_diagrams.plot_diagrams()
+    #train_diagrams = Diagrams_case1()
+    #diagrams.plot_diagrams(0)
+    #train_diagrams.plot_diagrams()
     cross_sections = generate_cross_sections(Arch())
-    # cs = CrossSectionSolver(cross_sections[0])
-    # cs.get_separated_plates()
+    cs = CrossSectionSolver(cross_sections[0])
+    print(cs.get_separated_deck())
     SFD = []
     BMD = []
     import c_s_visualizer
 
-    # cs = c_s_visualizer.DrawCrossSection(cross_sections, None)
-    # cs.draw_animation()
-    # c_s_visualizer.DrawElevation(cross_sections).draw(549, None)
+    cs = c_s_visualizer.DrawCrossSection(cross_sections, None)
+    cs.draw_animation()
+    c_s_visualizer.DrawElevation(cross_sections).draw(981, Arch())
     for x in range(1280):
         SFD.append(diagrams.shear_force(x))
         BMD.append(diagrams.moment(x))

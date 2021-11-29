@@ -71,10 +71,10 @@ class DrawElevation:
             h_max = 0
             for rect in self.cross_sections[1279-x]:
                 h_max = max(h_max, rect.y + rect.h)
-            pygame.draw.rect(self.window, (255, 255, 255), [x, self.window.get_size()[1]/2, 1, h_max])
+            pygame.draw.rect(self.window, (255, 255, 255), [x, self.window.get_size()[1]/2-arch.under_arch(1279-x)+arch.pi_beam_remover(1279-x), 1, h_max])
 
         pygame.draw.rect(self.window, (255, 0, 0), [1265, self.window.get_size()[1]/2, 15, 5])
-        pygame.draw.rect(self.window, (255, 0, 0), [1280-1045, self.window.get_size()[1] / 2, 30, 5])
+        pygame.draw.rect(self.window, (255, 0, 0), [1280-1075, self.window.get_size()[1] / 2, 30, 5])
         pygame.draw.rect(self.window, (255, 0, 0), [1280-failure_location, self.window.get_size()[1] / 2, 1, 30])
         pygame.draw.rect(self.window, (0, 255, 0), [1280-552, self.window.get_size()[1]/2+100, 4, 50])
         pygame.draw.rect(self.window, (0, 255, 0), [1280 - 1252, self.window.get_size()[1] / 2 + 100, 4, 50])
