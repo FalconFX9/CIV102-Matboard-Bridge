@@ -6,6 +6,9 @@ import matplotlib.pyplot as plt
 import constants as C
 import math
 
+import sys
+sys.setrecursionlimit(1300)
+
 
 class Rectangle:
 
@@ -61,6 +64,7 @@ class Diagrams_case1:
         self.train_length = self.w_s * 3 + self.c_s * 2
         self.forceA = 0
         self.forceB = 0
+        self.BMD_stephen_is_the_best_ta = {}
 
     def reaction_forces(self, train_x):
         #if train_x > 424:
@@ -97,6 +101,10 @@ class Diagrams_case1:
             #print("hi")
         #if self.forceA < 0:
             #print("hi")
+        if x < self.A:
+            return 0
+        if x == self.B:
+            return 0
         if x < train_x and x < self.B:
             return self.forceA
         if x < train_x + self.w_s and x < self.B:
@@ -131,11 +139,45 @@ class Diagrams_case1:
 
         # print("hi")
 
-    def moment(self, x, train_x):
+    def moment(self, x, train_x, recursive_def):
+        '''
         shear = self.shear_force(x, train_x)
         if shear != self.shear_force(x-1, train_x):
             return shear * x + self.shear_force(x-1, train_x)*x
         return self.shear_force(x, train_x) * x
+        '''
+        shear_loc = self.shear_force(x, train_x)
+        # if x > 1058:
+            # boo = 0
+        print(x)
+
+        '''
+        if x < train_x:
+            return shear * x  # (x - train_x) if x - train_x > 0 else shear * x
+        if x < train_x + self.w_s:
+            return shear * (x - train_x) + self.moment(train_x-1, train_x)
+        elif x < train_x + self.w_s + self.c_s:
+            return shear * (x - train_x - self.w_s) + self.moment(train_x + self.w_s-1, train_x)
+        elif x < train_x + 2*self.w_s + self.c_s:
+            return shear * (x - train_x - self.w_s - self.c_s) + self.moment(train_x + self.w_s + self.c_s-1, train_x)
+        elif x < train_x + 2*self.w_s + 2*self.c_s:
+            return shear * (x - train_x - 2*self.w_s - self.c_s) + self.moment(train_x + 2*self.w_s + self.c_s-1, train_x)
+        elif x < train_x + 3*self.w_s + 2*self.c_s: #  and x < self.B
+            return shear * (x - train_x - 2*self.w_s - 2*self.c_s) + self.moment(train_x + 2*self.w_s + 2*self.c_s-1, train_x)
+        elif x < train_x + 3*self.w_s + 2*self.c_s:
+            return shear * (x - train_x - 3*self.w_s - 2*self.c_s) + self.moment(train_x + 3*self.w_s + 2*self.c_s-1, train_x)
+        elif x >= train_x + self.train_length:
+            return 0
+        '''
+
+        if x <= 0:
+            return 0  # (x - train_x) if x - train_x > 0 else shear * x
+        elif (x - recursive_def) in self.BMD_stephen_is_the_best_ta:
+            return shear_loc * recursive_def + self.BMD_stephen_is_the_best_ta[x - recursive_def]
+        else:
+            return shear_loc * recursive_def + self.moment(x - recursive_def, train_x, recursive_def)
+
+
 
 
     def plot_diagrams(self):
@@ -144,41 +186,87 @@ class Diagrams_case1:
         BMD_max = []
         SFD_min = []
         BMD_min = []
+        sfd_big = []
+        bmd_big = []
 
-        for x in range(1280): # take min vals
-            max_shear = 0
-            max_moment = 0
-            min_shear = 0
-            min_moment = 0
+        for train_x in range(1280):
+            shear = []
+            moment = []
+            for x in range(1280):
+                shear.append(self.shear_force(x, train_x))
+                moment.append(self.moment(x, train_x, 1))
+                self.BMD_stephen_is_the_best_ta[x] = moment[x]
+            '''
+            SFD_max.append(max(shear))
+            BMD_max.append(max(moment))
+            SFD_min.append(min(shear))
+            BMD_min.append(min(moment))
+            '''
+            sfd_big.append(shear)
+            bmd_big.append(moment)
+            self.BMD_stephen_is_the_best_ta.clear()
+
+        for x in range(1280):
+            big_shear = 0
+            smol_shear = 0
+            big_moment = 0
+            smol_moment = 0
             for train_x in range(1280):
-                shear = self.shear_force(x, train_x)
-                moment = self.moment(x, train_x)
-                if shear > max_shear:
-                    max_shear = shear
-                if shear < min_shear:
-                    min_shear = shear
-                if moment > max_moment:
-                    max_moment = moment
-                if moment < min_shear:
-                    min_moment = moment
+                shear = sfd_big[train_x][x]
+                moment = bmd_big[train_x][x]
+                if shear > big_shear:
+                    big_shear = shear
+                if shear < smol_shear:
+                    smol_shear = shear
+                if moment > big_moment:
+                    big_moment = moment
+                if moment < smol_moment:
+                    smol_moment = moment
+            SFD_max.append(big_shear)
+            SFD_min.append(smol_shear)
+            BMD_max.append(big_moment)
+            BMD_min.append(smol_moment)
+
+
+
+        '''
+        for x in range(1280): # take min vals
+            shear = []
+            moment = []
+            for train_x in range(1280):
+                shear.append(self.shear_force(x, train_x))
+                moment.append(self.moment(x, train_x, 10))
+                self.BMD_stephen_is_the_best_ta[x] = moment[x]
             # print(min_shear)
-            SFD_max.append(max_shear)
-            BMD_max.append(max_moment)
-            SFD_min.append(min_shear)
-            BMD_min.append(min_moment)
+            # print(max_moment, moment)
+            SFD_max.append(max(shear))
+            BMD_max.append(max(moment))
+            SFD_min.append(min(shear))
+            BMD_min.append(min(moment))
+            self.BMD_stephen_is_the_best_ta.clear()
+            # self.BMD_stephen_is_the_best_ta[x] = moment[x]
+            # if 1056 < x < 1061:
+                # print(moment)
         # print(1280-self.train_length, self.train_length)
+        '''
         # using the variable axs for multiple Axes
         fig, axs1 = plt.subplots(1, 2)
 
         # using tuple unpacking for multiple Axes
         axs1[0].plot(SFD_max)
         axs1[0].plot(SFD_min)
+        axs1[0].set_xlabel("Distance from support 1 (mm)")
+        axs1[0].set_ylabel("Shear force (N)")
         axs1[1].plot(BMD_max)
         axs1[1].plot(BMD_min)
         axs1[1].invert_yaxis()
-        axs1[0].legend(["Shear Force (N)"])
-        axs1[1].legend(["Moment (Nmm)"])
+        axs1[1].set_xlabel("Distance from support 1 (mm)")
+        axs1[1].set_ylabel("Moment (Nmm)")
+        axs1[0].legend(["Max Shear Force", "Min Shear Force"])
+        axs1[1].legend(["Max Moment", "Min Moment"])
         plt.show()
+
+        return SFD_max, SFD_min, BMD_max, BMD_min
 
 class Diagrams:
     """ Generates the composite functions representing both moment diagrams based on a given P
@@ -408,7 +496,7 @@ class CrossSectionSolver:
         contact_areas_y = {}
         for n, rect in enumerate(self.sections[:-1]):
             if rect.ID == C.DECK_ID:
-                # print(rect.get_properties(), rect.ID, "RECT")
+                # print(rect.get_properties(), "RECT")
                 for other_rect in list(self.sections[:n] + self.sections[n + 1:]):
                     # print(other_rect.get_properties(), "OTHER_RECT")
                     contact_area, y = rect.is_touching(other_rect)
@@ -611,7 +699,6 @@ class BridgeSolver:
                         rect = self.sliced_decks[x][0][n][i]
                         case_n = self.sliced_decks[x][1][n][i]
                         if abs(rect.w) < 100 and rect.w > 0:
-                            print(f"Width: {rect.w}")
                             if case_n == 2:
                                 # print(f"Case 1: {rect.get_properties()}")
                                 up_or_down = rect.y - self.centroids[x]
@@ -623,7 +710,7 @@ class BridgeSolver:
                                 up_or_down = rect.y - self.centroids[x]
                                 sigma_crits.append([self.case_2(rect.h, rect.w), up_or_down])
 
-                            # print(f"Case 2 Sigma: {self.case_2(rect.h, rect.w)}")
+                                # print(f"Case 2 Sigma: {self.case_2(rect.h, rect.w)}")
 
             for i in range(len(self.sliced_webs[x][0])):
                 rect = self.sliced_webs[x][0][i]
@@ -682,7 +769,7 @@ class BridgeSolver:
             h_web = 0
             for rect in self.cross_sections[x]:
                 h_web = max(rect.h, h_web)
-            a = 150  # temporary
+            a = 550  # temporary
             tau = self.get_shear_buckling(C.DIAPHRAGM_THICKNESS, h_web, a)
             q, y = self.Qs[x]
             t = C.MATBOARD_THICKNESS  # CALCULATE IN CROSS-SECTION SOLVER
@@ -757,14 +844,12 @@ class Arch:
     @staticmethod
     def under_arch(x):
         y = abs(0.2*(x-549)) - 100
-
         if y < 0:
             return abs(y)
         else:
             return 0
 
-    @staticmethod
-    def over_arch(x):
+     def over_arch(x):
         #  y = -0.0017 * (x - 788) * (x - 1280)
         if x < 1060:
             y = -abs(0.3*(x-1059)) + 150
@@ -852,24 +937,23 @@ def generate_cross_sections(arch):
     return cross_sections
 
 
-if __name__ == "__main__":
+def solve_loads():
     diagrams = Diagrams(C.P)
-    #train_diagrams = Diagrams_case1()
-    #diagrams.plot_diagrams(0)
-    #train_diagrams.plot_diagrams()
+    diagrams.plot_diagrams(0)
     cross_sections = generate_cross_sections(Arch())
-    cs = CrossSectionSolver(cross_sections[0])
-    print(cs.get_separated_deck())
     SFD = []
     BMD = []
-    import c_s_visualizer
 
-    cs = c_s_visualizer.DrawCrossSection(cross_sections, None)
-    cs.draw_animation()
-    c_s_visualizer.DrawElevation(cross_sections).draw(981, Arch())
+    # import c_s_visualizer
+
+    # cs = c_s_visualizer.DrawCrossSection(cross_sections, None)
+    # cs.draw_animation()
+    # c_s_visualizer.DrawElevation(cross_sections).draw(549, None)
+
     for x in range(1280):
         SFD.append(diagrams.shear_force(x))
         BMD.append(diagrams.moment(x))
+
     bridge_solver = BridgeSolver(cross_sections, SFD, BMD)
     bridge_solver.flex_failure()
     bridge_solver.shear_failure()
@@ -878,3 +962,36 @@ if __name__ == "__main__":
     bridge_solver.plate_buckling()
     bridge_solver.midspan_deflection()
     bridge_solver.plot()
+
+def solve_train():
+    diagrams = Diagrams_case1()
+    SFD_max, SFD_min, BMD_max, BMD_min = diagrams.plot_diagrams()
+    cross_sections = generate_cross_sections(Arch())
+
+    # import c_s_visualizer
+
+    # cs = c_s_visualizer.DrawCrossSection(cross_sections, None)
+    # cs.draw_animation()
+    # c_s_visualizer.DrawElevation(cross_sections).draw(549, None)
+
+    bridge_solver_max = BridgeSolver(cross_sections, SFD_max, BMD_max)
+    bridge_solver_max.flex_failure()
+    bridge_solver_max.shear_failure()
+    bridge_solver_max.glue_fail()
+    bridge_solver_max.shear_buckling()
+    bridge_solver_max.plate_buckling()
+    # bridge_solver.midspan_deflection()
+    bridge_solver_max.plot()
+
+    bridge_solver_min = BridgeSolver(cross_sections, SFD_min, BMD_min)
+    bridge_solver_min.flex_failure()
+    bridge_solver_min.shear_failure()
+    bridge_solver_min.glue_fail()
+    bridge_solver_min.shear_buckling()
+    bridge_solver_min.plate_buckling()
+    # bridge_solver.midspan_deflection()
+    bridge_solver_min.plot()
+
+if __name__ == "__main__":
+    solve_train()
+    # solve_loads()
