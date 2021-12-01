@@ -149,7 +149,7 @@ class Diagrams_case1:
         shear_loc = self.shear_force(x, train_x)
         # if x > 1058:
             # boo = 0
-        print(x)
+        # print(x)
 
         '''
         if x < train_x:
@@ -849,7 +849,8 @@ class Arch:
         else:
             return 0
 
-     def over_arch(x):
+    @staticmethod
+    def over_arch(x):
         #  y = -0.0017 * (x - 788) * (x - 1280)
         if x < 1060:
             y = -abs(0.3*(x-1059)) + 150
